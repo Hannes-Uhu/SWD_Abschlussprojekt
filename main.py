@@ -3,6 +3,8 @@ import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 from scipy.optimize import minimize
 import json
+from tinydb import TinyDB, Query
+import streamlit as st
 
 
 class Gelenk:
@@ -147,17 +149,18 @@ class Mechanism:
         plt.legend()
         plt.show()
 
+db = TinyDB("mechanism_db.json")
+mechanisms_table = db.table("mechanisms")
 
-
-def save_mechanism(gelenk, staebe, radius, filename="mechanism.json"):
+def save_mechanism_to_db(name, gelenke, staebe, radius):
     data = {
-        "gelenke": [[g.x, g.y] for g in gelenk],
-        "staebe": [[gelenk.index(s.gelenk1), gelenk.index(s.gelenk2)] for s in staebe],
+        "name": name,
+        "gelenke": [{"x": g.x, "y": g.y} for g in gelenke],  # Speichert Gelenke als (x, y)-Werte
+        "staebe": [[gelenke.index(s.gelenk1), gelenke.index(s.gelenk2)] for s in staebe],  # Indizes der verbundenen Gelenke
         "radius": radius
     }
-    with open(filename, "w") as f:
-        json.dump(data, f, indent=4)
-    print(f"✅ Mechanismus gespeichert in {filename}")
+    mechanisms_table.insert(data)  # Speichert den Mechanismus in der Datenbank
+    st.success(f"Mechanismus '{name}' gespeichert!")
 
 
 
@@ -190,8 +193,6 @@ def simulate_mechanism(gelenk, staebe, radius):
     mechanism.animate_mechanism()
 
 
-# Speichern des Mechanismus
-save_mechanism(gelenk, staebe, radius)
 
 # Laden des Mechanismus und Simulation starten
 geladene_gelenke, geladene_staebe, geladener_radius = load_mechanism()
