@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 from scipy.optimize import minimize
-import json
+import json 
 from tinydb import TinyDB, Query
 import streamlit as st
 
@@ -149,8 +149,22 @@ class Mechanism:
         plt.legend()
         plt.show()
 
+    def plot_mechanism(self):
+        fig, ax = plt.subplots(figsize=(6, 6))
+        ax.set_xlim(-50, 50)
+        ax.set_ylim(-50, 50)
+        ax.grid(True)
+        for stab in self.staebe:
+            x_values = [stab.gelenk1.x, stab.gelenk2.x]
+            y_values = [stab.gelenk1.y, stab.gelenk2.y]
+            ax.plot(x_values, y_values, 'ro-')
+
+        return fig
+
+
 db = TinyDB("mechanism_db.json")
 mechanisms_table = db.table("mechanisms")
+
 
 def save_mechanism_to_db(name, gelenke, staebe, radius):
     data = {
@@ -163,15 +177,16 @@ def save_mechanism_to_db(name, gelenke, staebe, radius):
     st.success(f"Mechanismus '{name}' gespeichert!")
 
 
-
-def load_mechanism(filename="mechanism.json"):
-    with open(filename, "r") as f:
-        data = json.load(f)
-
-    gelenk = [Gelenk(x, y) for x, y in data["gelenke"]]
-    staebe = [Stab(gelenk[i1], gelenk[i2]) for i1, i2 in data["staebe"]]
-    
-    return gelenk, staebe, data["radius"]
+def load_mechanism_from_db(name):
+    MechanismQuery = Query()
+    result = mechanisms_table.search(MechanismQuery.name == name)  # Sucht nach einem Mechanismus mit diesem Namen
+    if result:
+        data = result[0]
+        gelenke = [Gelenk(g["x"], g["y"]) for g in data["gelenke"]]
+        staebe = [Stab(gelenke[i1], gelenke[i2]) for i1, i2 in data["staebe"]]
+        radius = data["radius"]
+        return gelenke, staebe, radius
+    return None, None, None
 
 
 gelenk = [
@@ -193,7 +208,3 @@ def simulate_mechanism(gelenk, staebe, radius):
     mechanism.animate_mechanism()
 
 
-
-# Laden des Mechanismus und Simulation starten
-geladene_gelenke, geladene_staebe, geladener_radius = load_mechanism()
-simulate_mechanism(geladene_gelenke, geladene_staebe, geladener_radius)
