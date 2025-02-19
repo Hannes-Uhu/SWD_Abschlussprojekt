@@ -29,6 +29,7 @@ with tab1:
 
     fixed_gelenk_index = st.radio("Wähle ein Gelenk als fixiert", range(num_gelenke))
     rotating_gelenk_index = st.radio("Wähle ein Gelenk als rotierend", [i for i in range(num_gelenke) if i != fixed_gelenk_index])
+    tracked_gelenk_index = st.radio("Wähle ein Gelenk für die Bahnkurvenanzeige", range(num_gelenke))
 
     node_table = []
     for i in range(num_gelenke):
@@ -37,14 +38,17 @@ with tab1:
         y = cols[1].number_input(f"Y-Koordinate für Gelenk {i}", value=0, step=1)
         is_static = (i == fixed_gelenk_index)
         is_rotating = (i == rotating_gelenk_index)
+        is_tracked = (i == tracked_gelenk_index)
         gelenke.append(Gelenk(x, y))
-        gelenke[-1].is_static = is_static  # Speichere den Static-Status im Gelenk-Objekt
-        gelenke[-1].is_rotating = is_rotating  # Speichere den Rotationsstatus im Gelenk-Objekt
-        node_table.append({"Node": f"p{i}", "X": x, "Y": y, "Static": is_static, "Rotating": is_rotating})
-    
+        gelenke[-1].is_static = is_static  # Speichere den Static-Status
+        gelenke[-1].is_rotating = is_rotating  # Speichere den Rotationsstatus
+        gelenke[-1].is_tracked = is_tracked  # Speichere den Bahnkurven-Status
+        node_table.append({"Node": f"p{i}", "X": x, "Y": y, "Static": is_static, "Rotating": is_rotating, "Tracked": is_tracked})
+
     radius = st.slider("Rotationsradius", min_value=1, max_value=50, value=10)
 
     st.table(node_table)
+
     
     st.subheader(f"🔗 Stäbe verbinden (Benötigt: {num_staebe_required})")
     edge_table = []
@@ -90,7 +94,7 @@ with tab2:
             gelenke, staebe, radius = load_mechanism_from_db(selected_mechanism)
             if gelenke and staebe:
                 st.success(f"✅ '{selected_mechanism}' geladen!")
-                node_table = [{"Node": f"p{i}", "X": g.x, "Y": g.y, "Static": g.is_static} for i, g in enumerate(gelenke)]
+                node_table = [{"Node": f"p{i}", "X": x, "Y": y, "Static": is_static, "Rotating": is_rotating, "Tracked": is_tracked} for i, g in enumerate(gelenke)]
                 st.table(node_table)
                 mechanism = Mechanism(gelenke, staebe, radius)
                 fig = mechanism.plot_mechanism()

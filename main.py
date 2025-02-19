@@ -21,14 +21,13 @@ class Stab:
         self.gelenk1 = gelenk1
         self.gelenk2 = gelenk2
 
-
 class Mechanism:
-    def __init__(self, gelenk, staebe, radius):
+    def __init__(self, gelenk, staebe, radius, fixed_gelenk_index, rotating_gelenk_index):
         self.gelenk = gelenk
         self.staebe = staebe
 
-        self.fixed_gelenk_index = 0  # Der erste Punkt ist immer fixiert
-        self.rotating_gelenk_index = 1  # Der zweite Punkt bewegt sich auf der Kreisbahn
+        self.fixed_gelenk_index = fixed_gelenk_index  # Vom Nutzer gewähltes fixiertes Gelenk
+        self.rotating_gelenk_index = rotating_gelenk_index  # Vom Nutzer gewähltes rotierendes Gelenk
 
         self.radius = radius
         self.theta_values = np.linspace(0, 2 * np.pi, 72)
@@ -149,18 +148,6 @@ class Mechanism:
         plt.legend()
         plt.show()
 
-    def plot_mechanism(self):
-        fig, ax = plt.subplots(figsize=(6, 6))
-        ax.set_xlim(-50, 50)
-        ax.set_ylim(-50, 50)
-        ax.grid(True)
-        for stab in self.staebe:
-            x_values = [stab.gelenk1.x, stab.gelenk2.x]
-            y_values = [stab.gelenk1.y, stab.gelenk2.y]
-            ax.plot(x_values, y_values, 'ro-')
-
-        return fig
-
 
 db = TinyDB("mechanism_db.json")
 mechanisms_table = db.table("mechanisms")
@@ -169,50 +156,42 @@ mechanisms_table = db.table("mechanisms")
 def save_mechanism_to_db(name, gelenke, staebe, radius):
     data = {
         "name": name,
-        "gelenke": [{"x": g.x, "y": g.y, "static": static} for g, static in zip(gelenke, [g.is_static for g in gelenke])],
+        "gelenke": [{
+            "x": g.x, 
+            "y": g.y, 
+            "static": g.is_static, 
+            "rotating": g.is_rotating, 
+            "tracked": g.is_tracked
+        } for g in gelenke],
         "staebe": [[gelenke.index(s.gelenk1), gelenke.index(s.gelenk2)] for s in staebe],
         "radius": radius
     }
     mechanisms_table.insert(data)
     st.success(f"✅ Mechanismus '{name}' gespeichert!")
 
-
-
+    
 def load_mechanism_from_db(name):
     MechanismQuery = Query()
     result = mechanisms_table.search(MechanismQuery.name == name)
-    
+
     if result:
         data = result[0]
         gelenke = [Gelenk(g["x"], g["y"]) for g in data["gelenke"]]
         staebe = [Stab(gelenke[i1], gelenke[i2]) for i1, i2 in data["staebe"]]
         radius = data["radius"]
 
-        # Static-Status zuweisen
-        for g, static in zip(gelenke, [g["static"] for g in data["gelenke"]]):
-            g.is_static = static
-        
+        # Fixiert, rotierend und bahnverfolgend Status zuweisen
+        for g, properties in zip(gelenke, data["gelenke"]):
+            g.is_static = properties.get("static", False)
+            g.is_rotating = properties.get("rotating", False)
+            g.is_tracked = properties.get("tracked", False)
+
         return gelenke, staebe, radius
     return None, None, None
 
 
-
-gelenk = [
-    Gelenk(0, 0),
-    Gelenk(-30, 0),
-    Gelenk(10, 30)
-]
-radius = 10
-
-staebe = [
-    Stab(gelenk[0], gelenk[2]),
-    Stab(gelenk[2], gelenk[1]),
-    Stab(gelenk[0], gelenk[1])
-]
-
-def simulate_mechanism(gelenk, staebe, radius):
-    
-    mechanism = Mechanism(gelenk, staebe, radius)
+def simulate_mechanism(gelenk, staebe, radius, fixed_gelenk_index, rotating_gelenk_index):
+    mechanism = Mechanism(gelenk, staebe, radius, fixed_gelenk_index, rotating_gelenk_index)
     mechanism.animate_mechanism()
 
 
