@@ -27,6 +27,9 @@ with tab1:
     num_gelenke = st.slider("Anzahl der Gelenke", min_value=2, max_value=10, value=3)
     num_staebe_required = (3 * (num_gelenke - 1) - 1) // 2  # Berechnung nach Kutzbach-Gleichung
 
+    fixed_gelenk_index = st.radio("Wähle ein Gelenk als fixiert", range(num_gelenke))
+    rotating_gelenk_index = st.radio("Wähle ein Gelenk als rotierend", [i for i in range(num_gelenke) if i != fixed_gelenk_index])
+
     node_table = []
     for i in range(num_gelenke):
         cols = st.columns(3)
@@ -39,11 +42,8 @@ with tab1:
         gelenke[-1].is_rotating = is_rotating  # Speichere den Rotationsstatus im Gelenk-Objekt
         node_table.append({"Node": f"p{i}", "X": x, "Y": y, "Static": is_static, "Rotating": is_rotating})
     
-    fixed_gelenk_index = st.radio("Wähle ein Gelenk als fixiert", range(num_gelenke))
-    rotating_gelenk_index = st.radio("Wähle ein Gelenk als rotierend", [i for i in range(num_gelenke) if i != fixed_gelenk_index])
-
     radius = st.slider("Rotationsradius", min_value=1, max_value=50, value=10)
-    
+
     st.table(node_table)
     
     st.subheader(f"🔗 Stäbe verbinden (Benötigt: {num_staebe_required})")
