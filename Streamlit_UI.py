@@ -39,7 +39,7 @@ with tab1:
         is_static = (i == fixed_gelenk_index)
         is_rotating = (i == rotating_gelenk_index)
         is_tracked = (i == tracked_gelenk_index)
-        gelenke.append(Gelenk(x, y))
+        gelenke.append(Gelenk(x, y, is_static, is_rotating, is_tracked))
         gelenke[-1].is_static = is_static  # Speichere den Static-Status
         gelenke[-1].is_rotating = is_rotating  # Speichere den Rotationsstatus
         gelenke[-1].is_tracked = is_tracked  # Speichere den Bahnkurven-Status
@@ -68,8 +68,8 @@ with tab1:
     
     if st.button("🚀 Simulation starten"):
         if len(staebe) == num_staebe_required:
-            mechanism = Mechanism(gelenke, staebe, radius)
-            fig = mechanism.plot_mechanism()
+            mechanism = Mechanism(gelenke, staebe, radius, fixed_gelenk_index, rotating_gelenk_index)
+            fig, ani = mechanism.animate_mechanism()
             st.pyplot(fig)
         else:
             st.error("❌ Simulation nicht möglich: Falsche Anzahl an Stäben!")

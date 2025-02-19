@@ -8,7 +8,10 @@ import streamlit as st
 
 
 class Gelenk:
-    def __init__(self, x, y):
+    def __init__(self, x, y, is_static=False, is_rotating=False, is_tracked=False):
+        self.is_static = is_static
+        self.is_rotating = is_rotating
+        self.is_tracked = is_tracked
         self.x = x
         self.y = y
 
@@ -146,7 +149,7 @@ class Mechanism:
             blit=False
         )
         plt.legend()
-        plt.show()
+        st.pyplot(fig)
 
 
 db = TinyDB("mechanism_db.json")
@@ -164,7 +167,9 @@ def save_mechanism_to_db(name, gelenke, staebe, radius):
             "tracked": g.is_tracked
         } for g in gelenke],
         "staebe": [[gelenke.index(s.gelenk1), gelenke.index(s.gelenk2)] for s in staebe],
-        "radius": radius
+        "radius": radius,
+        "fixed_gelenk_index": next((i for i, g in enumerate(gelenke) if g.is_static), None),
+        "rotating_gelenk_index": next((i for i, g in enumerate(gelenke) if g.is_rotating), None)
     }
     mechanisms_table.insert(data)
     st.success(f"✅ Mechanismus '{name}' gespeichert!")
@@ -186,12 +191,12 @@ def load_mechanism_from_db(name):
             g.is_rotating = properties.get("rotating", False)
             g.is_tracked = properties.get("tracked", False)
 
-        return gelenke, staebe, radius
+        fixed_gelenk_index = data.get("fixed_gelenk_index", None)
+        rotating_gelenk_index = data.get("rotating_gelenk_index", None)
+
+        return gelenke, staebe, radius, fixed_gelenk_index, rotating_gelenk_index
     return None, None, None
 
 
-def simulate_mechanism(gelenk, staebe, radius, fixed_gelenk_index, rotating_gelenk_index):
-    mechanism = Mechanism(gelenk, staebe, radius, fixed_gelenk_index, rotating_gelenk_index)
-    mechanism.animate_mechanism()
 
 
