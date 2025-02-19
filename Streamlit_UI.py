@@ -26,16 +26,23 @@ with tab1:
     gelenke = []
     num_gelenke = st.slider("Anzahl der Gelenke", min_value=2, max_value=10, value=3)
     num_staebe_required = (3 * (num_gelenke - 1) - 1) // 2  # Berechnung nach Kutzbach-Gleichung
-    
+
     node_table = []
     for i in range(num_gelenke):
         cols = st.columns(3)
         x = cols[0].number_input(f"X-Koordinate für Gelenk {i}", value=i * 10, step=1)
         y = cols[1].number_input(f"Y-Koordinate für Gelenk {i}", value=0, step=1)
-        is_static = cols[2].checkbox(f"Fixiert", key=f"static_{i}")
+        is_static = (i == fixed_gelenk_index)
+        is_rotating = (i == rotating_gelenk_index)
         gelenke.append(Gelenk(x, y))
         gelenke[-1].is_static = is_static  # Speichere den Static-Status im Gelenk-Objekt
-        node_table.append({"Node": f"p{i}", "X": x, "Y": y, "Static": is_static})
+        gelenke[-1].is_rotating = is_rotating  # Speichere den Rotationsstatus im Gelenk-Objekt
+        node_table.append({"Node": f"p{i}", "X": x, "Y": y, "Static": is_static, "Rotating": is_rotating})
+    
+    fixed_gelenk_index = st.radio("Wähle ein Gelenk als fixiert", range(num_gelenke))
+    rotating_gelenk_index = st.radio("Wähle ein Gelenk als rotierend", [i for i in range(num_gelenke) if i != fixed_gelenk_index])
+
+    radius = st.slider("Rotationsradius", min_value=1, max_value=50, value=10)
     
     st.table(node_table)
     
@@ -54,12 +61,6 @@ with tab1:
     # Überprüfung der Anzahl der Stäbe
     if len(staebe) != num_staebe_required:
         st.error(f"❌ Fehler: Es müssen genau {num_staebe_required} Stäbe verwendet werden, um F = 1 zu gewährleisten!")
-    
-    st.subheader("🔄 Dynamische Verschiebung")
-    rotating_gelenk = st.selectbox("Wähle ein Gelenk für die Kreisbewegung", range(num_gelenke))
-    center_x = st.number_input("X-Zentrum", value=0)
-    center_y = st.number_input("Y-Zentrum", value=0)
-    radius = st.slider("Rotationsradius", min_value=1, max_value=50, value=10)
     
     if st.button("🚀 Simulation starten"):
         if len(staebe) == num_staebe_required:
