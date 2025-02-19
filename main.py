@@ -148,8 +148,9 @@ class Mechanism:
             interval=50,
             blit=False
         )
-        plt.legend()
-        st.pyplot(fig)
+
+        ax.legend()  # ✅ Legende korrekt platzieren
+        return fig, ani  # ✅ Gibt das Figure-Objekt und die Animation zurück
 
 
 db = TinyDB("mechanism_db.json")
@@ -178,24 +179,26 @@ def save_mechanism_to_db(name, gelenke, staebe, radius):
 def load_mechanism_from_db(name):
     MechanismQuery = Query()
     result = mechanisms_table.search(MechanismQuery.name == name)
+    
+    if not result:
+        return None, None, None, None, None  # Falls nichts gefunden wurde, gebe Platzhalter zurück
+    
+    data = result[0]
+    gelenke = [Gelenk(g["x"], g["y"]) for g in data["gelenke"]]
+    staebe = [Stab(gelenke[i1], gelenke[i2]) for i1, i2 in data["staebe"]]
+    radius = data["radius"]
 
-    if result:
-        data = result[0]
-        gelenke = [Gelenk(g["x"], g["y"]) for g in data["gelenke"]]
-        staebe = [Stab(gelenke[i1], gelenke[i2]) for i1, i2 in data["staebe"]]
-        radius = data["radius"]
+    # Static, Rotating und Tracked-Status setzen
+    for g, properties in zip(gelenke, data["gelenke"]):
+        g.is_static = properties.get("static", False)
+        g.is_rotating = properties.get("rotating", False)
+        g.is_tracked = properties.get("tracked", False)
 
-        # Fixiert, rotierend und bahnverfolgend Status zuweisen
-        for g, properties in zip(gelenke, data["gelenke"]):
-            g.is_static = properties.get("static", False)
-            g.is_rotating = properties.get("rotating", False)
-            g.is_tracked = properties.get("tracked", False)
+    # Fixiertes und rotierendes Gelenk aus der Datenbank laden
+    fixed_gelenk_index = data.get("fixed_gelenk_index", None)
+    rotating_gelenk_index = data.get("rotating_gelenk_index", None)
 
-        fixed_gelenk_index = data.get("fixed_gelenk_index", None)
-        rotating_gelenk_index = data.get("rotating_gelenk_index", None)
-
-        return gelenke, staebe, radius, fixed_gelenk_index, rotating_gelenk_index
-    return None, None, None
+    return gelenke, staebe, radius, fixed_gelenk_index, rotating_gelenk_index
 
 
 

@@ -91,29 +91,29 @@ with tab2:
         selected_mechanism = st.selectbox("🔽 Wähle einen Mechanismus", mechanism_names)
         
         if st.button("📂 Laden & Simulieren"):
-            gelenke, staebe, radius = load_mechanism_from_db(selected_mechanism)
-            if gelenke and staebe:
-                st.success(f"✅ '{selected_mechanism}' geladen!")
+            result = load_mechanism_from_db(selected_mechanism)
 
-                # Korrekte Erstellung der Tabelle mit Gelenk-Attributen
-                node_table = [{"Node": f"p{i}", "X": g.x, "Y": g.y, 
-                               "Static": g.is_static, "Rotating": g.is_rotating, "Tracked": g.is_tracked} 
-                              for i, g in enumerate(gelenke)]
-                
-                st.table(node_table)  # Tabelle mit Gelenk-Attributen anzeigen
-
-                # Finde die Indizes für fixe und rotierende Gelenke
-                fixed_gelenk_index = next((i for i, g in enumerate(gelenke) if g.is_static), None)
-                rotating_gelenk_index = next((i for i, g in enumerate(gelenke) if g.is_rotating), None)
-
-                if fixed_gelenk_index is None or rotating_gelenk_index is None:
-                    st.error("❌ Fehler: Es muss ein fixiertes und ein rotierendes Gelenk existieren!")
-                else:
-                    mechanism = Mechanism(gelenke, staebe, radius, fixed_gelenk_index, rotating_gelenk_index)
-                    fig = mechanism.plot_mechanism()
-                    st.pyplot(fig)
+            if result == (None, None, None, None, None):
+                st.error("❌ Fehler: Der Mechanismus konnte nicht gefunden werden!")
             else:
-                st.error("❌ Fehler beim Laden des Mechanismus!")
+                gelenke, staebe, radius, fixed_gelenk_index, rotating_gelenk_index = result  # ✅ Korrekte Entpackung
+
+                if gelenke and staebe and fixed_gelenk_index is not None and rotating_gelenk_index is not None:
+                    st.success(f"✅ '{selected_mechanism}' geladen!")
+
+                    # Korrekte Erstellung der Tabelle mit Gelenk-Attributen
+                    node_table = [{"Node": f"p{i}", "X": g.x, "Y": g.y, 
+                                   "Static": g.is_static, "Rotating": g.is_rotating, "Tracked": g.is_tracked} 
+                                  for i, g in enumerate(gelenke)]
+                    
+                    st.table(node_table)  # Tabelle mit Gelenk-Attributen anzeigen
+
+                    mechanism = Mechanism(gelenke, staebe, radius, fixed_gelenk_index, rotating_gelenk_index)
+                    fig, ani = mechanism.animate_mechanism()
+                    st.pyplot(fig)
+                else:
+                    st.error("❌ Fehler: Ungültige Mechanismus-Daten!")
     else:
         st.warning("⚠️ Noch keine gespeicherten Mechanismen gefunden.")
+
 
