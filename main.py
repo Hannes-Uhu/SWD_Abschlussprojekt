@@ -169,24 +169,32 @@ mechanisms_table = db.table("mechanisms")
 def save_mechanism_to_db(name, gelenke, staebe, radius):
     data = {
         "name": name,
-        "gelenke": [{"x": g.x, "y": g.y} for g in gelenke],  # Speichert Gelenke als (x, y)-Werte
-        "staebe": [[gelenke.index(s.gelenk1), gelenke.index(s.gelenk2)] for s in staebe],  # Indizes der verbundenen Gelenke
+        "gelenke": [{"x": g.x, "y": g.y, "static": static} for g, static in zip(gelenke, [g.is_static for g in gelenke])],
+        "staebe": [[gelenke.index(s.gelenk1), gelenke.index(s.gelenk2)] for s in staebe],
         "radius": radius
     }
-    mechanisms_table.insert(data)  # Speichert den Mechanismus in der Datenbank
-    st.success(f"Mechanismus '{name}' gespeichert!")
+    mechanisms_table.insert(data)
+    st.success(f"✅ Mechanismus '{name}' gespeichert!")
+
 
 
 def load_mechanism_from_db(name):
     MechanismQuery = Query()
-    result = mechanisms_table.search(MechanismQuery.name == name)  # Sucht nach einem Mechanismus mit diesem Namen
+    result = mechanisms_table.search(MechanismQuery.name == name)
+    
     if result:
         data = result[0]
         gelenke = [Gelenk(g["x"], g["y"]) for g in data["gelenke"]]
         staebe = [Stab(gelenke[i1], gelenke[i2]) for i1, i2 in data["staebe"]]
         radius = data["radius"]
+
+        # Static-Status zuweisen
+        for g, static in zip(gelenke, [g["static"] for g in data["gelenke"]]):
+            g.is_static = static
+        
         return gelenke, staebe, radius
     return None, None, None
+
 
 
 gelenk = [
