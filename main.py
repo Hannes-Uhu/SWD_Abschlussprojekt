@@ -5,7 +5,8 @@ from scipy.optimize import minimize
 import json 
 from tinydb import TinyDB, Query
 import streamlit as st
-
+import tempfile
+import os
 
 class Gelenk:
     def __init__(self, x, y, is_static=False, is_rotating=False, is_tracked=False):
@@ -149,8 +150,11 @@ class Mechanism:
             blit=False
         )
 
-        ax.legend()  # ✅ Legende korrekt platzieren
-        return fig, ani  # ✅ Gibt das Figure-Objekt und die Animation zurück
+        temp_dir = tempfile.mkdtemp()  # 📌 Temporären Ordner erstellen
+        animation_path = os.path.join(temp_dir, "mechanism_animation.gif")
+        ani.save(animation_path, writer="pillow", fps=20)
+
+        return animation_path 
 
 
 db = TinyDB("mechanism_db.json")

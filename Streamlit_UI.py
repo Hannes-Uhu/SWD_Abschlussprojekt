@@ -117,3 +117,16 @@ with tab2:
         st.warning("⚠️ Noch keine gespeicherten Mechanismen gefunden.")
 
 
+    # Mechanismus simulieren
+    if st.button("🚀 Simulation starten", key="simulation_starten"):
+        if len(staebe) == num_staebe_required:
+            mechanism = Mechanism(gelenke, staebe, radius, fixed_gelenk_index, rotating_gelenk_index)
+            animation_path = mechanism.animate_mechanism()
+
+            # **📌 Zeige die Animation in Streamlit an**
+            if animation_path:
+                st.image(animation_path)  # ✅ Zeigt die GIF-Animation an
+        else:
+            st.error("❌ Simulation nicht möglich: Falsche Anzahl an Stäben!")
+
+
