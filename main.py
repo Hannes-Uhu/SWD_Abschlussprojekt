@@ -2,23 +2,20 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 from scipy.optimize import minimize
-import json 
+import json
 from tinydb import TinyDB, Query
 import streamlit as st
-import tempfile
-import os
 
 class Gelenk:
     def __init__(self, x, y, is_static=False, is_rotating=False, is_tracked=False):
+        self.x = x
+        self.y = y
         self.is_static = is_static
         self.is_rotating = is_rotating
         self.is_tracked = is_tracked
-        self.x = x
-        self.y = y
 
     def position(self):
         return np.array([self.x, self.y])
-
 
 class Stab:
     def __init__(self, gelenk1, gelenk2):
@@ -26,12 +23,12 @@ class Stab:
         self.gelenk2 = gelenk2
 
 class Mechanism:
-    def __init__(self, gelenk, staebe, radius, fixed_gelenk_index, rotating_gelenk_index):
+    def __init__(self, gelenk, staebe, radius):
         self.gelenk = gelenk
         self.staebe = staebe
 
-        self.fixed_gelenk_index = fixed_gelenk_index  # Vom Nutzer gewähltes fixiertes Gelenk
-        self.rotating_gelenk_index = rotating_gelenk_index  # Vom Nutzer gewähltes rotierendes Gelenk
+        self.fixed_gelenk_index = next((i for i, g in enumerate(gelenk) if g.is_static), 0)
+        self.rotating_gelenk_index = next((i for i, g in enumerate(gelenk) if g.is_rotating), 1)
 
         self.radius = radius
         self.theta_values = np.linspace(0, 2 * np.pi, 72)
@@ -39,7 +36,16 @@ class Mechanism:
         self.verbindungs_matrix = self.create_verbindungs_matrix()
         self.start_laengen = self.berechnet_laengen()
 
-        self.trajectory1 = []
+        # Speichere Bahnkurven für alle Gelenke
+        self.trajectories = {i: [] for i in range(len(self.gelenk))}
+        self.selected_trajectory = next((i for i, g in enumerate(gelenk) if g.is_tracked), self.rotating_gelenk_index)
+
+        # Speichert Werte in Trajektorie
+        for theta in self.theta_values:
+            positions = self.update_positions(theta)
+            for i, pos in enumerate(positions):
+                self.trajectories[i].append(tuple(pos))  
+
 
     def create_verbindungs_matrix(self):
         num_staebe = len(self.staebe)
@@ -62,12 +68,12 @@ class Mechanism:
         stab_laenge = self.verbindungs_matrix @ gelenk_vektor
         laengen = np.linalg.norm(stab_laenge.reshape(-1, 2), axis=1)
         return laengen
-
+    
     def fehlerfunktion(self, positions, rotationspunkt_neu):
-        gelenk_vektor = np.hstack((
-            [self.gelenk[self.fixed_gelenk_index].position()],
-            [rotationspunkt_neu],
-            [positions[i:i+2] for i in range(0, len(positions), 2)]
+        gelenk_vektor = np.vstack((
+            self.gelenk[self.fixed_gelenk_index].position().reshape(1, -1),
+            rotationspunkt_neu.reshape(1, -1),
+            np.array(positions).reshape(-1, 2)
         )).flatten()
 
         current_laengen = self.verbindungs_matrix @ gelenk_vektor
@@ -95,71 +101,23 @@ class Mechanism:
             method='BFGS'
         )
 
-        optimized_positions = np.vstack((
-            [self.gelenk[self.fixed_gelenk_index].position()],
-            result.x.reshape(-1, 2).tolist(),
-            [rotationspunkt_neu]
-        ))
+        # Reihenfolge der Gelenke bleibt fix
+        optimized_positions = np.zeros((len(self.gelenk), 2))
+        
+        optimized_positions[self.fixed_gelenk_index] = self.gelenk[self.fixed_gelenk_index].position()
+        optimized_positions[self.rotating_gelenk_index] = rotationspunkt_neu
+        remaining_indices = [i for i in range(len(self.gelenk)) if i not in [self.fixed_gelenk_index, self.rotating_gelenk_index]]
+        
+        optimized_positions[remaining_indices] = result.x.reshape(-1, 2)
+
+        for i, pos in enumerate(optimized_positions):
+            self.trajectories[i].append(tuple(pos))
 
         return optimized_positions
 
-    def animate_mechanism(self):
-        fig, ax = plt.subplots(figsize=(8, 6))
-        ax.set_xlabel('X-Koordinate')
-        ax.set_ylabel('Y-Koordinate')
-        ax.set_title('Animation des Mechanismus')
-        ax.grid(True)
-
-        mechanik_plot, = ax.plot([], [], 'ro-', label='Mechanismus')
-        rotating_gelenk_plot, = ax.plot(
-            self.gelenk[self.rotating_gelenk_index].x,
-            self.gelenk[self.rotating_gelenk_index].y,
-            'bo',
-            label='Rotierender Punkt'
-        )
-
-        circle = plt.Circle(
-            (self.gelenk[self.rotating_gelenk_index].x, self.gelenk[self.rotating_gelenk_index].y),
-            self.radius,
-            color='b',
-            fill=False,
-            linestyle='--'
-        )
-        ax.add_patch(circle)
-
-        trajectory1_plot, = ax.plot([], [], 'g-', label='Trajektorie Punkt 1')
-
-        def update(frame):
-            theta = self.theta_values[frame]
-            optimized_positions = self.update_positions(theta)
-            ax.set_xlim(-50, 40)
-            ax.set_ylim(-20, 40)
-
-            self.trajectory1.append(optimized_positions[1])
-
-            mechanik_plot.set_data(optimized_positions[:, 0], optimized_positions[:, 1])
-            trajectory1_plot.set_data(*zip(*self.trajectory1))
-
-            return mechanik_plot, trajectory1_plot
-
-        ani = animation.FuncAnimation(
-            fig,
-            update,
-            frames=len(self.theta_values),
-            interval=50,
-            blit=False
-        )
-
-        temp_dir = tempfile.mkdtemp()  # 📌 Temporären Ordner erstellen
-        animation_path = os.path.join(temp_dir, "mechanism_animation.gif")
-        ani.save(animation_path, writer="pillow", fps=20)
-
-        return animation_path 
-
-
+# TinyDB Datenbank
 db = TinyDB("mechanism_db.json")
 mechanisms_table = db.table("mechanisms")
-
 
 def save_mechanism_to_db(name, gelenke, staebe, radius):
     data = {
@@ -172,38 +130,23 @@ def save_mechanism_to_db(name, gelenke, staebe, radius):
             "tracked": g.is_tracked
         } for g in gelenke],
         "staebe": [[gelenke.index(s.gelenk1), gelenke.index(s.gelenk2)] for s in staebe],
-        "radius": radius,
-        "fixed_gelenk_index": next((i for i, g in enumerate(gelenke) if g.is_static), None),
-        "rotating_gelenk_index": next((i for i, g in enumerate(gelenke) if g.is_rotating), None)
+        "radius": radius
     }
     mechanisms_table.insert(data)
     st.success(f"✅ Mechanismus '{name}' gespeichert!")
 
-    
 def load_mechanism_from_db(name):
     MechanismQuery = Query()
     result = mechanisms_table.search(MechanismQuery.name == name)
     
     if not result:
-        return None, None, None, None, None  # Falls nichts gefunden wurde, gebe Platzhalter zurück
+        return None, None, None, None, None 
     
     data = result[0]
-    gelenke = [Gelenk(g["x"], g["y"]) for g in data["gelenke"]]
+    gelenke = [Gelenk(g["x"], g["y"], g.get("static", False), g.get("rotating", False), g.get("tracked", False)) for g in data["gelenke"]]
     staebe = [Stab(gelenke[i1], gelenke[i2]) for i1, i2 in data["staebe"]]
     radius = data["radius"]
-
-    # Static, Rotating und Tracked-Status setzen
-    for g, properties in zip(gelenke, data["gelenke"]):
-        g.is_static = properties.get("static", False)
-        g.is_rotating = properties.get("rotating", False)
-        g.is_tracked = properties.get("tracked", False)
-
-    # Fixiertes und rotierendes Gelenk aus der Datenbank laden
     fixed_gelenk_index = data.get("fixed_gelenk_index", None)
     rotating_gelenk_index = data.get("rotating_gelenk_index", None)
 
     return gelenke, staebe, radius, fixed_gelenk_index, rotating_gelenk_index
-
-
-
-
