@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 from matplotlib.animation import FuncAnimation, HTMLWriter
 from tinydb import TinyDB, Query
-from test import Mechanism, Gelenk, Stab, save_mechanism_to_db, load_mechanism_from_db
+from main import Mechanism, Gelenk, Stab, save_mechanism_to_db, load_mechanism_from_db
 from io import BytesIO
 import base64
 
@@ -156,35 +156,6 @@ with selected_tab[0]:
             html_writer = HTMLWriter()
             anim_html = ani.to_jshtml()
             st.components.v1.html(anim_html, height=600)
-
-            # CSV-Speicherung nach Simulation
-            if trajectory_data:
-                save_mode = st.toggle("Nur verfolgte Gelenke speichern")
-
-                data = []
-                columns = ["Frame"]
-                selected_indices = [i for i, g in enumerate(gelenke) if g.is_tracked] if save_mode else range(len(gelenke))
-
-                for frame_idx in range(len(trajectory_data[list(trajectory_data.keys())[0]])):
-                    row = [frame_idx]
-                    for i in selected_indices:
-                        x, y = trajectory_data[i][frame_idx] if i in trajectory_data else (None, None)
-                        row.extend([round(x, 2) if x is not None else None, round(y, 2) if y is not None else None])
-                    data.append(row)
-
-                for i in selected_indices:
-                    columns.extend([f"Gelenk {i} X", f"Gelenk {i} Y"])
-
-                df = pd.DataFrame(data, columns=columns)
-                csv = df.to_csv(index=False, sep=",")
-
-                st.download_button(
-                    label="📥 Bahnkurve als CSV herunterladen",
-                    data=csv,
-                    file_name="bahnkurve.csv",
-                    mime="text/csv"
-                )
-
 
     else:
         st.error("Fehler: Es muss ein rotierendes Gelenk definiert werden, um die Simulation zu starten.")
