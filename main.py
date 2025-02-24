@@ -27,8 +27,11 @@ class Mechanism:
         self.gelenk = gelenk
         self.staebe = staebe
 
-        self.fixed_gelenk_index = next((i for i, g in enumerate(gelenk) if g.is_static), 0)
-        self.rotating_gelenk_index = next((i for i, g in enumerate(gelenk) if g.is_rotating), 1)
+        self.fixed_gelenk_index = next((i for i, g in enumerate(gelenk) if g.is_static), None)
+        self.rotating_gelenk_index = next((i for i, g in enumerate(gelenk) if g.is_rotating), None)
+        
+        if self.fixed_gelenk_index is None or self.rotating_gelenk_index is None:
+            raise ValueError("Fehler: Es muss genau ein fixiertes und ein rotierendes Gelenk geben!")
 
         self.radius = radius
         self.theta_values = np.linspace(0, 2 * np.pi, 72)
@@ -98,7 +101,7 @@ class Mechanism:
             self.fehlerfunktion,
             initial_guess,
             args=(rotationspunkt_neu,),
-            method='BFGS'
+            method='SLSQP'
         )
 
         # Reihenfolge der Gelenke bleibt fix
