@@ -20,13 +20,13 @@ st.title("Interaktive Mechanismus-Simulation")
 st.session_state.setdefault("mechanism", None)
 
 # Tabs
-selected_tab = st.tabs(["Mechanismus erstellen", 
-                        "Mechaniken laden", 
-                        "Mechanismus herunter- und hochladen, löschen", 
-                        "Mechanismusanimation downloaden"])
+selected_tab = st.tabs(["💾 Erstellung", 
+                        "📂 Laden/Darstellung", 
+                        "📊 CSV download",
+                        "📥⬆️ Mechanik-Export/Import", 
+                        "🎞️ Animation"])
 
-
-
+############################################################################################################################################################################
 
 with selected_tab[0]:
     st.header("Mechanismus erstellen")
@@ -93,9 +93,15 @@ with selected_tab[0]:
             save_mechanism_to_db(mechanism_name, gelenke, staebe, radius)
             st.success(f"✅ Mechanismus '{mechanism_name}' gespeichert!")
 
-    # Checkbox zur Anzeige des Längenfehlers
-    show_length_error = st.checkbox("Prozentualen Längenfehler anzeigen")
+    # Checkboxen für Anzeigen
+    show_length_error = st.toggle("Prozentualen Längenfehler anzeigen")
+    show_stab_lengths = st.toggle("Längen der Stäbe anzeigen")
+    show_stab_angles = st.toggle("Winkel zwischen den Stäben anzeigen")
 
+    if show_length_error and show_stab_lengths:
+        st.warning("Warnung: Wenn sowohl 'Prozentualen Längenfehler anzeigen' als auch 'Längen der Stäbe anzeigen' aktiviert sind, können sich die Zahlen in der Visualisierung überlappen.")
+   
+   
     # Mechanismus visualisieren
     if rotierendes_gelenk is not None:
         if st.button("Simulation starten", key="start_simulation_tab0"):
@@ -145,6 +151,39 @@ with selected_tab[0]:
                 length_errors = (current_lengths - mechanism.start_laengen) / mechanism.start_laengen * 100
                 return length_errors
 
+            def calculate_stab_lengths(positions, staebe):
+                lengths = []
+                for stab in staebe:
+                    p1, p2 = positions[gelenke.index(stab.gelenk1)], positions[gelenke.index(stab.gelenk2)]
+                    length = np.linalg.norm(np.array(p2) - np.array(p1))
+                    lengths.append(length)
+                return lengths
+
+            def calculate_stab_angles(positions, staebe):
+                angles = []
+                for gelenk in gelenke:
+                    connected_stabs = [stab for stab in staebe if gelenk in [stab.gelenk1, stab.gelenk2]]
+                    if len(connected_stabs) < 2:
+                        continue
+
+                    for i in range(len(connected_stabs) - 1):
+                        stab1, stab2 = connected_stabs[i], connected_stabs[i + 1]
+                        p1 = np.array(positions[gelenke.index(stab1.gelenk1 if stab1.gelenk1 != gelenk else stab1.gelenk2)])
+                        p2 = np.array(positions[gelenke.index(gelenk)])
+                        p3 = np.array(positions[gelenke.index(stab2.gelenk1 if stab2.gelenk1 != gelenk else stab2.gelenk2)])
+
+                        v1 = p1 - p2
+                        v2 = p3 - p2
+
+                        if np.linalg.norm(v1) == 0 or np.linalg.norm(v2) == 0:
+                            angle = 0
+                        else:
+                            cos_theta = np.dot(v1, v2) / (np.linalg.norm(v1) * np.linalg.norm(v2))
+                            angle = np.arccos(np.clip(cos_theta, -1.0, 1.0)) * (180 / np.pi)
+
+                        angles.append((gelenk, angle, p2[0], p2[1]))  
+                return angles
+
             def update(frame):
                 theta = np.linspace(0, 2 * np.pi, 50)[frame]
                 optimized_positions = mechanism.update_positions(theta)
@@ -153,7 +192,6 @@ with selected_tab[0]:
                 stab_x, stab_y = [], []
                 length_errors = calculate_length_error(mechanism, optimized_positions)
 
-                
                 for text in text_annotations:
                     text.remove()
                 text_annotations.clear()
@@ -168,12 +206,31 @@ with selected_tab[0]:
                         text = ax.text(mid_x, mid_y, f"{length_errors[i]:.2f}%", color='red', fontsize=8, ha='center')
                         text_annotations.append(text)
 
+                    if show_stab_lengths:
+                        mid_x, mid_y = (p1[0] + p2[0]) / 2, (p1[1] + p2[1]) / 2
+                        text = ax.text(mid_x, mid_y, f"{calculate_stab_lengths(optimized_positions, mechanism.staebe)[i]:.2f}", 
+                                    color='blue', fontsize=8, ha='center')
+                        text_annotations.append(text)
+
                 stab_plot.set_data(stab_x, stab_y)
 
                 for i, gelenk in enumerate(gelenke):
                     if gelenk.is_tracked:
                         traj_x, traj_y = traj_plots[i].get_data()
                         traj_plots[i].set_data(np.append(traj_x, optimized_positions[i, 0]), np.append(traj_y, optimized_positions[i, 1]))
+
+                if show_stab_angles:
+                    angles = calculate_stab_angles(optimized_positions, mechanism.staebe)
+                    for idx, (gelenk, angle, mid_x, mid_y) in enumerate(angles):
+                        # Verschiebe die Winkelanzeige leicht nach links und rechts, um Überlappung zu vermeiden
+                        offset_x = 1.7 * np.cos(np.deg2rad(angle))
+                        offset_y = 1.7 * np.sin(np.deg2rad(angle))
+                        if idx % 2 == 0:
+                            text = ax.text(mid_x + offset_x, mid_y + offset_y, f"{angle:.1f}°", color='green', fontsize=8, ha='center')
+                        else:
+                            text = ax.text(mid_x - offset_x, mid_y - offset_y, f"{angle:.1f}°", color='green', fontsize=8, ha='center')
+                        text_annotations.append(text)
+
 
                 return gelenk_points, stab_plot, *traj_plots.values()
 
@@ -191,9 +248,26 @@ with selected_tab[0]:
 
 with selected_tab[1]:
     st.header("Mechanismus laden")
+
+    # Checkboxen für Anzeigen
+    if "show_length_error_tab1" not in st.session_state:
+        st.session_state["show_length_error_tab1"] = False
+    if "show_stab_lengths_tab1" not in st.session_state:
+        st.session_state["show_stab_lengths_tab1"] = False
+    if "show_stab_angles_tab1" not in st.session_state:
+        st.session_state["show_stab_angles_tab1"] = False
+
+    
     saved_mechanisms = [m["name"] for m in mechanisms_table.all()]
     selected_mechanism = st.selectbox("🔽 Wähle einen gespeicherten Mechanismus", saved_mechanisms)
 
+    show_length_error = st.toggle("Prozentualen Längenfehler anzeigen", key="show_length_error_tab1")
+    show_stab_lengths = st.toggle("Längen der Stäbe anzeigen", key="show_stab_lengths_tab1")
+    show_stab_angles = st.toggle("Winkel zwischen den Stäben anzeigen", key="show_stab_angles_tab1")
+
+    if show_length_error and show_stab_lengths:
+        st.warning("Warnung: Wenn sowohl 'Prozentualen Längenfehler anzeigen' als auch 'Längen der Stäbe anzeigen' aktiviert sind, können sich die Zahlen in der Visualisierung überlappen.")
+   
     if st.button("📂 Laden"):
         result = load_mechanism_from_db(selected_mechanism)
         if result[0] is not None:
@@ -222,12 +296,6 @@ with selected_tab[1]:
 
             st.subheader("Rotationsradius")
             st.write(f"{radius}")
-
-    # Checkbox für Längenfehler anzeigen
-    if "show_length_error" not in st.session_state:
-        st.session_state.show_length_error = False
-
-    st.session_state.show_length_error = st.checkbox("Prozentualen Längenfehler anzeigen", key="show_length_error_tab1")
 
     if st.session_state["mechanism"] and st.button("▶ Mechanismus ausführen", key="run_loaded_mechanism_tab1"):
         mechanism = st.session_state["mechanism"]
@@ -274,6 +342,39 @@ with selected_tab[1]:
             current_lengths = np.linalg.norm(current_lengths.reshape(-1, 2), axis=1)
             length_errors = (current_lengths - mechanism.start_laengen) / mechanism.start_laengen * 100
             return length_errors
+        
+        def calculate_stab_lengths(positions, staebe):
+            lengths = []
+            for stab in staebe:
+                p1, p2 = positions[mechanism.gelenk.index(stab.gelenk1)], positions[mechanism.gelenk.index(stab.gelenk2)]
+                length = np.linalg.norm(np.array(p2) - np.array(p1))
+                lengths.append(length)
+            return lengths
+
+        def calculate_stab_angles(positions, staebe):
+            angles = []
+            for gelenk in mechanism.gelenk:
+                connected_stabs = [stab for stab in staebe if gelenk in [stab.gelenk1, stab.gelenk2]]
+                if len(connected_stabs) < 2:
+                    continue
+
+                for i in range(len(connected_stabs) - 1):
+                    stab1, stab2 = connected_stabs[i], connected_stabs[i + 1]
+                    p1 = np.array(positions[mechanism.gelenk.index(stab1.gelenk1 if stab1.gelenk1 != gelenk else stab1.gelenk2)])
+                    p2 = np.array(positions[mechanism.gelenk.index(gelenk)])
+                    p3 = np.array(positions[mechanism.gelenk.index(stab2.gelenk1 if stab2.gelenk1 != gelenk else stab2.gelenk2)])
+
+                    v1 = p1 - p2
+                    v2 = p3 - p2
+
+                    if np.linalg.norm(v1) == 0 or np.linalg.norm(v2) == 0:
+                        angle = 0
+                    else:
+                        cos_theta = np.dot(v1, v2) / (np.linalg.norm(v1) * np.linalg.norm(v2))
+                        angle = np.arccos(np.clip(cos_theta, -1.0, 1.0)) * (180 / np.pi)
+
+                    angles.append((gelenk, angle, p2[0], p2[1]))  
+            return angles
 
         def update(frame):
             theta = np.linspace(0, 2 * np.pi, 50)[frame]
@@ -283,7 +384,6 @@ with selected_tab[1]:
             stab_x, stab_y = [], []
             length_errors = calculate_length_error(mechanism, optimized_positions)
 
-            
             for text in text_annotations:
                 text.remove()
             text_annotations.clear()
@@ -293,9 +393,15 @@ with selected_tab[1]:
                 stab_x.extend([p1[0], p2[0], None])
                 stab_y.extend([p1[1], p2[1], None])
 
-                if st.session_state.show_length_error:
+                if st.session_state["show_length_error_tab1"]:
                     mid_x, mid_y = (p1[0] + p2[0]) / 2, (p1[1] + p2[1]) / 2
                     text = ax.text(mid_x, mid_y, f"{length_errors[i]:.2f}%", color='red', fontsize=8, ha='center')
+                    text_annotations.append(text)
+
+                if st.session_state["show_stab_lengths_tab1"]:
+                    mid_x, mid_y = (p1[0] + p2[0]) / 2, (p1[1] + p2[1]) / 2
+                    text = ax.text(mid_x, mid_y, f"{calculate_stab_lengths(optimized_positions, mechanism.staebe)[i]:.2f}", 
+                                color='blue', fontsize=8, ha='center')
                     text_annotations.append(text)
 
             stab_plot.set_data(stab_x, stab_y)
@@ -305,6 +411,18 @@ with selected_tab[1]:
                     traj_x, traj_y = traj_plots[i].get_data()
                     traj_plots[i].set_data(np.append(traj_x, optimized_positions[i, 0]), np.append(traj_y, optimized_positions[i, 1]))
 
+            if st.session_state["show_stab_angles_tab1"]:
+                angles = calculate_stab_angles(optimized_positions, mechanism.staebe)
+                for idx, (gelenk, angle, mid_x, mid_y) in enumerate(angles):
+                    # Verschiebe die Winkelanzeige leicht nach links und rechts, um Überlappung zu vermeiden
+                    offset_x = 1.7 * np.cos(np.deg2rad(angle))
+                    offset_y = 1.7 * np.sin(np.deg2rad(angle))
+                    if idx % 2 == 0:
+                        text = ax.text(mid_x + offset_x, mid_y + offset_y, f"{angle:.1f}°", color='green', fontsize=8, ha='center')
+                    else:
+                        text = ax.text(mid_x - offset_x, mid_y - offset_y, f"{angle:.1f}°", color='green', fontsize=8, ha='center')
+                    text_annotations.append(text)
+
             return gelenk_points, stab_plot, *traj_plots.values()
 
         ani = FuncAnimation(fig, update, frames=50, interval=100)
@@ -312,10 +430,96 @@ with selected_tab[1]:
         anim_html = ani.to_jshtml()
         st.components.v1.html(anim_html, height=600)
 
+
 ############################################################################################################################################################################
 
 
-with selected_tab[2]:
+
+with selected_tab[2]:  
+
+    saved_mechanisms = [m["name"] for m in mechanisms_table.all()]
+    selected_mechanism = st.selectbox("🔽 Wähle einen gespeicherten Mechanismus", saved_mechanisms, key="saved_mechanism_tab0")
+
+    if st.button("📂 Laden", key="laden_tab2"):
+        result = load_mechanism_from_db(selected_mechanism)
+        if result[0] is not None:
+            gelenke, staebe, radius, fixed_gelenk_index, rotating_gelenk_index = result
+            st.session_state["mechanism"] = Mechanism(gelenke, staebe, radius)
+            st.success(f"✅ Mechanismus '{selected_mechanism}' geladen!")
+
+            gelenk_data = pd.DataFrame({
+                "Gelenk": [f"G{i}" for i in range(len(gelenke))],
+                "X-Koordinate": [round(g.x, 2) for g in gelenke],
+                "Y-Koordinate": [round(g.y, 2) for g in gelenke],
+                "Fixiert": [g.is_static for g in gelenke],
+                "Rotierend": [g.is_rotating for g in gelenke],
+                "Trajektorie": [g.is_tracked for g in gelenke]
+            })
+            
+            st.subheader("Gelenk-Daten")
+            st.dataframe(gelenk_data)
+
+            stab_data = pd.DataFrame({
+                "Stab": [f"S{i}" for i in range(len(staebe))],
+                "Gelenk 1": [gelenke.index(stab.gelenk1) for stab in staebe],
+                "Gelenk 2": [gelenke.index(stab.gelenk2) for stab in staebe]
+            })
+    
+    if st.session_state["mechanism"]:
+        export_option = st.toggle("CSV-Datei nur für ausgewählte Trajektorie", value=True)
+
+        if st.button("CSV exportieren"):
+            mechanism = st.session_state["mechanism"]
+            theta_values = np.linspace(0, 2 * np.pi, 50)
+            positions_over_time = [mechanism.update_positions(theta) for theta in theta_values]
+
+            if export_option:
+                tracked_positions = {i: [] for i, gelenk in enumerate(mechanism.gelenk) if gelenk.is_tracked}
+                for theta, positions in zip(theta_values, positions_over_time):
+                    for i, gelenk in enumerate(mechanism.gelenk):
+                        if gelenk.is_tracked:
+                            tracked_positions[i].append((theta, positions[i]))
+
+                data = []
+                for theta, positions in zip(theta_values, positions_over_time):
+                    row = [round(np.degrees(theta), 2)]
+                    for i, pos in enumerate(positions):
+                        if i in tracked_positions:
+                            row.extend([round(pos[0], 2), round(pos[1], 2)])
+                    data.append(row)
+
+                columns = ["Theta (Grad)"]
+                for i in range(len(mechanism.gelenk)):
+                    if i in tracked_positions:
+                        columns.extend([f"X{i}", f"Y{i}"])
+
+                df = pd.DataFrame(data, columns=columns)
+
+            else:
+                data = []
+                for theta, positions in zip(theta_values, positions_over_time):
+                    row = [round(np.degrees(theta), 2)]
+                    for pos in positions:
+                        row.extend([round(pos[0], 2), round(pos[1], 2)])
+                    data.append(row)
+
+                columns = ["Theta (Grad)"]
+                for i in range(len(mechanism.gelenk)):
+                    columns.extend([f"X{i}", f"Y{i}"])
+
+                df = pd.DataFrame(data, columns=columns)
+
+            csv = df.to_csv(index=False).encode('utf-8')
+            st.download_button(
+                label="📥 CSV herunterladen",
+                data=csv,
+                file_name="trajektorie.csv",
+                mime="text/csv"
+            )
+
+############################################################################################################################################################################
+
+with selected_tab[3]:
     st.header("Mechanismus herunter- und hochladen")
 
     # Export-Funktion für JSON im gespeicherten Format
@@ -476,18 +680,26 @@ with selected_tab[2]:
 ############################################################################################################################################################################
 
 
-with selected_tab[3]:
+with selected_tab[4]:
     st.header("Mechanismusanimation (gif) downloaden")
     saved_mechanisms = [m["name"] for m in mechanisms_table.all()]
     selected_mechanism = st.selectbox("🔽 Wähle einen gespeicherten Mechanismus", saved_mechanisms, key="mechanism_tab3")
 
-    # Checkbox für Längenfehler
-    if "show_length_error" not in st.session_state:
-        st.session_state.show_length_error = False
+    # Checkboxen für Anzeigen
+    if "show_length_error_tab3" not in st.session_state:
+        st.session_state["show_length_error_tab3"] = False
+    if "show_stab_lengths_tab3" not in st.session_state:
+        st.session_state["show_stab_lengths_tab3"] = False
+    if "show_stab_angles_tab3" not in st.session_state:
+        st.session_state["show_stab_angles_tab3"] = False
 
-    st.session_state.show_length_error = st.checkbox("Prozentualen Längenfehler anzeigen", key="show_length_error_tab3")
+    show_length_error = st.toggle("Prozentualen Längenfehler anzeigen", key="show_length_error_tab3")
+    show_stab_lengths = st.toggle("Längen der Stäbe anzeigen", key="show_stab_lengths_tab3")
+    show_stab_angles = st.toggle("Winkel zwischen den Stäben anzeigen", key="show_stab_angles_tab3")
 
-
+    if show_length_error and show_stab_lengths:
+        st.warning("Warnung: Wenn sowohl 'Prozentualen Längenfehler anzeigen' als auch 'Längen der Stäbe anzeigen' aktiviert sind, können sich die Zahlen in der Visualisierung überlappen.")
+   
     if st.button("📂 Laden", key="laden_tab3"):
         result = load_mechanism_from_db(selected_mechanism)
         if result[0] is not None:
@@ -495,7 +707,6 @@ with selected_tab[3]:
             st.session_state["mechanism"] = Mechanism(gelenke, staebe, radius)
             st.success(f"✅ Mechanismus '{selected_mechanism}' wurde geladen und wird nun für den Download vorbereitet!")
 
-            
             mechanism = st.session_state["mechanism"]
             theta_values = np.linspace(0, 2 * np.pi, 50)
             positions_over_time = [mechanism.update_positions(theta) for theta in theta_values]
@@ -532,6 +743,39 @@ with selected_tab[3]:
                 length_errors = (current_lengths - mechanism.start_laengen) / mechanism.start_laengen * 100
                 return length_errors
 
+            def calculate_stab_lengths(positions, staebe):
+                lengths = []
+                for stab in staebe:
+                    p1, p2 = positions[gelenke.index(stab.gelenk1)], positions[gelenke.index(stab.gelenk2)]
+                    length = np.linalg.norm(np.array(p2) - np.array(p1))
+                    lengths.append(length)
+                return lengths
+
+            def calculate_stab_angles(positions, staebe):
+                angles = []
+                for gelenk in gelenke:
+                    connected_stabs = [stab for stab in staebe if gelenk in [stab.gelenk1, stab.gelenk2]]
+                    if len(connected_stabs) < 2:
+                        continue
+
+                    for i in range(len(connected_stabs) - 1):
+                        stab1, stab2 = connected_stabs[i], connected_stabs[i + 1]
+                        p1 = np.array(positions[gelenke.index(stab1.gelenk1 if stab1.gelenk1 != gelenk else stab1.gelenk2)])
+                        p2 = np.array(positions[gelenke.index(gelenk)])
+                        p3 = np.array(positions[gelenke.index(stab2.gelenk1 if stab2.gelenk1 != gelenk else stab2.gelenk2)])
+
+                        v1 = p1 - p2
+                        v2 = p3 - p2
+
+                        if np.linalg.norm(v1) == 0 or np.linalg.norm(v2) == 0:
+                            angle = 0
+                        else:
+                            cos_theta = np.dot(v1, v2) / (np.linalg.norm(v1) * np.linalg.norm(v2))
+                            angle = np.arccos(np.clip(cos_theta, -1.0, 1.0)) * (180 / np.pi)
+
+                        angles.append((gelenk, angle, p2[0], p2[1]))  
+                return angles
+            
             def update(frame):
                 theta = np.linspace(0, 2 * np.pi, 50)[frame]
                 optimized_positions = mechanism.update_positions(theta)
@@ -540,7 +784,6 @@ with selected_tab[3]:
                 stab_x, stab_y = [], []
                 length_errors = calculate_length_error(mechanism, optimized_positions)
 
-                
                 for text in text_annotations:
                     text.remove()
                 text_annotations.clear()
@@ -550,10 +793,27 @@ with selected_tab[3]:
                     stab_x.extend([p1[0], p2[0], None])
                     stab_y.extend([p1[1], p2[1], None])
 
-                    if st.session_state.show_length_error:
+                    if st.session_state["show_length_error_tab3"]:
                         mid_x, mid_y = (p1[0] + p2[0]) / 2, (p1[1] + p2[1]) / 2
                         text = ax.text(mid_x, mid_y, f"{length_errors[i]:.2f}%", color='red', fontsize=8, ha='center')
                         text_annotations.append(text)
+
+                    if st.session_state["show_stab_lengths_tab3"]:
+                        mid_x, mid_y = (p1[0] + p2[0]) / 2, (p1[1] + p2[1]) / 2
+                        text = ax.text(mid_x, mid_y, f"{calculate_stab_lengths(optimized_positions, mechanism.staebe)[i]:.2f}", 
+                                    color='blue', fontsize=8, ha='center')
+                        text_annotations.append(text)
+
+                    if st.session_state["show_stab_angles_tab3"]:
+                        angles = calculate_stab_angles(optimized_positions, mechanism.staebe)
+                        for idx, (gelenk, angle, mid_x, mid_y) in enumerate(angles):
+                            offset_x = 1.7 * np.cos(np.deg2rad(angle))
+                            offset_y = 1.7 * np.sin(np.deg2rad(angle))
+                            if idx % 2 == 0:
+                                text = ax.text(mid_x + offset_x, mid_y + offset_y, f"{angle:.1f}°", color='green', fontsize=8, ha='center')
+                            else:
+                                text = ax.text(mid_x - offset_x, mid_y - offset_y, f"{angle:.1f}°", color='green', fontsize=8, ha='center')
+                            text_annotations.append(text)
 
                 stab_plot.set_data(stab_x, stab_y)
 
