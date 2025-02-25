@@ -24,7 +24,8 @@ selected_tab = st.tabs(["💾 Erstellung",
                         "📂 Laden/Darstellung", 
                         "📊 CSV download",
                         "📥⬆️ Mechanik-Export/Import", 
-                        "🎞️ Animation"])
+                        "🎞️ Animation",
+                        "📜 Stückliste"])
 
 ############################################################################################################################################################################
 
@@ -842,3 +843,55 @@ with selected_tab[4]:
                 file_name=f"{selected_mechanism}.gif",
                 mime="image/gif"
             )
+
+############################################################################################################################
+
+with selected_tab[4]:
+    st.header("Stückliste erstellen")
+
+    if st.session_state["mechanism"]:
+        mechanism = st.session_state["mechanism"]
+
+        # Gelenke auswählen
+        st.subheader("Gelenke auswählen")
+        selected_gelenke = st.multiselect(
+            "Wähle Gelenke aus",
+            [f"G{i}" for i in range(len(mechanism.gelenk))],
+            default=[f"G{i}" for i in range(len(mechanism.gelenk))]
+        )
+
+        # Stäbe auswählen
+        st.subheader("Stäbe auswählen")
+        selected_staebe = st.multiselect(
+            "Wähle Stäbe aus",
+            [f"S{i}" for i in range(len(mechanism.staebe))],
+            default=[f"S{i}" for i in range(len(mechanism.staebe))]
+        )
+
+        # Antriebe auswählen
+        st.subheader("Antriebe auswählen")
+        selected_antriebe = st.multiselect(
+            "Wähle Antriebe aus",
+            [f"A{i}" for i in range(len(mechanism.gelenk)) if mechanism.gelenk[i].is_rotating],
+            default=[f"A{i}" for i in range(len(mechanism.gelenk)) if mechanism.gelenk[i].is_rotating]
+        )
+
+        # Stückliste erstellen
+        st.subheader("Stückliste")
+        stueckliste_data = {
+            "Typ": ["Gelenk"] * len(selected_gelenke) + ["Stab"] * len(selected_staebe) + ["Antrieb"] * len(selected_antriebe),
+            "Name": selected_gelenke + selected_staebe + selected_antriebe
+        }
+        stueckliste_df = pd.DataFrame(stueckliste_data)
+        st.dataframe(stueckliste_df)
+
+        # Stückliste als CSV herunterladen
+        csv = stueckliste_df.to_csv(index=False).encode('utf-8')
+        st.download_button(
+            label="📥 Stückliste als CSV herunterladen",
+            data=csv,
+            file_name='stueckliste.csv',
+            mime='text/csv'
+        )
+    else:
+        st.warning("Bitte lade oder erstelle zuerst einen Mechanismus.")
