@@ -34,6 +34,40 @@ if modal.is_open():
         - 💾 **Speichern & Laden**
         - 📊 **Daten exportieren**
         
+        💾 **Mechanismus erstellen**  
+        - Öffne die Anwendung im Browser.
+        - Gehe zum Tab "Erstellen".
+        - Wähle den Rotationsradius und die Anzahl der Gelenkpunkte.
+        - Bearbeite die Gelenkpunkte und Stäbe nach Bedarf.
+        - Gib einen Namen für den Mechanismus ein und klicke auf "Speichern".
+
+        📂 **Mechanismus laden und simulieren**  
+        - Wechsle zum Tab "Laden".
+        - Wähle einen gespeicherten Mechanismus aus der Dropdown-Liste und klicke auf "Laden".
+        - Klicke auf "Mechanik ausführen", um die Simulation zu starten.
+
+        📊 **CSV exportieren**  
+        - Gehe zum Tab "CSV download".
+        - Wähle einen gespeicherten Mechanismus aus der Dropdown-Liste und klicke auf "Laden".
+        - Entscheide, ob die CSV-Datei nur für die ausgewählte Trajektorie exportiert werden soll.
+        - Klicke auf "CSV exportieren", um die Daten herunterzuladen.
+
+        📥⬆️ **Mechanismus exportieren/importieren**  
+        - Navigiere zum Tab "Export/Import".
+        - Wähle einen gespeicherten Mechanismus aus der Dropdown-Liste und klicke auf "JSON herunterladen", um den Mechanismus als JSON-Datei zu exportieren.
+        - Lade eine JSON-Datei hoch, um einen Mechanismus zu importieren.
+
+        🎞️ **Mechanismusanimation (GIF) downloaden**  
+        - Öffne den Tab "GIF".
+        - Wähle einen gespeicherten Mechanismus aus der Dropdown-Liste und klicke auf "Laden".
+        - Wähle die Anzeigeoptionen (Längenfehler, Stablängen, Stabwinkel).
+        - Klicke auf "Download als GIF", um die Animation herunterzuladen.
+
+        📜 **Stückliste erstellen**  
+        - Gehe zum Tab "Stückliste".
+        - Wähle die Gelenke, Stäbe und Antriebe aus, die in die Stückliste aufgenommen werden sollen.
+        - Klicke auf "Stückliste als CSV herunterladen", um die Liste zu exportieren.
+ 
         Viel Spaß! 🎉
         """)
 
@@ -64,7 +98,7 @@ selected_tab = st.tabs(["💾 Erstellung",
 with selected_tab[0]:
     st.header("Mechanismus erstellen")
     radius = st.slider("Rotationsradius", 5, 20, 10)
-    
+    st.info("Hinweis: Das erste Gelenk ist immer das feste Gelenk, das zweite Gelenk immer das Drehgelenk, damit der Mechanismus in jeder Konfiguration einwandfrei funktioniert.")
     num_gelenke = st.number_input("Anzahl der Gelenkpunkte", min_value=2, max_value=100, value=4)
     gelenke_data = pd.DataFrame({
         "Gelenk": [f"G{i}" for i in range(num_gelenke)],
