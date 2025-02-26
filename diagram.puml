@@ -1,0 +1,77 @@
+@startuml
+' Package für das Mechanismus-Modul
+package "Mechanism Module" {
+  class Mechanism {
+    - gelenke: list
+    - staebe: list
+    - radius: float
+    - fixed_gelenk_index: int
+    - rotating_gelenk_index: int
+    - theta_values: np.ndarray
+    - verbindungs_matrix: np.ndarray
+    - start_laengen: np.ndarray
+    - trajectories: dict
+    - selected_trajectory: int
+    + create_verbindungs_matrix()
+    + berechnet_laengen()
+    + fehlerfunktion()
+    + update_positions()
+  }
+
+  class Gelenk {
+    - x: float
+    - y: float
+    - is_static: bool
+    - is_rotating: bool
+    - is_tracked: bool
+    + position()
+  }
+
+  class Stab {
+    - gelenk1: Gelenk
+    - gelenk2: Gelenk
+  }
+
+  Mechanism --> Gelenk
+  Mechanism --> Stab
+}
+
+' Package für das Datenbank-Modul
+package "Database Module" {
+  ' Obwohl database.py keine Klasse enthält, repräsentieren wir es als Utility "Database".
+  class Database {
+    + save_mechanism_to_db(name, gelenke, staebe, radius)
+    + load_mechanism_from_db(name)
+  }
+}
+
+' Package für das Animations-Modul
+package "Animation Module" {
+  ' animation.py enthält die Funktion animate_mechanism, welche wir als Methode in einem Animation Manager darstellen.
+  class Animation {
+    + animate_mechanism(mechanism, show_length_error, show_stab_lengths, show_stab_angles)
+  }
+}
+
+' Package für das UI-Modul
+package "UI Module" {
+  ' ui.py enthält den Code für die Streamlit-basierte Benutzeroberfläche.
+  class UI {
+    + main()
+    + create_mechanism()
+    + load_and_simulate_mechanism()
+    + export_csv()
+    + export_import_mechanism()
+    + generate_animation_gif()
+    + create_stueckliste()
+  }
+}
+
+' Beziehungen zwischen den Modulen
+Database ..> Mechanism : Creates/loads
+Animation ..> Mechanism : Animates
+UI ..> Database : Nutzt
+UI ..> Animation : Ruft auf
+UI ..> Mechanism : Erstellt / simuliert
+
+@enduml

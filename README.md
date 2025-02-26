@@ -47,60 +47,46 @@
    - Wähle einen gespeicherten Mechanismus aus der Dropdown-Liste und klicke auf "Laden".
    - Klicke auf "Mechanik ausführen", um die Simulation zu starten.
 
-## Projektstruktur
+4. **CSV exportieren**:
+   - Gehe zum Tab "CSV download".
+   - Wähle einen gespeicherten Mechanismus aus der Dropdown-Liste und klicke auf "Laden".
+   - Wähle, ob die CSV-Datei nur für die ausgewählte Trajektorie exportiert werden soll.
+   - Klicke auf "CSV exportieren", um die Daten als CSV-Datei herunterzuladen.
 
-- [Streamlit_UI.py](http://_vscodecontentref_/0): Hauptdatei für die Streamlit-Anwendung.
-- [main.py](http://_vscodecontentref_/1): Enthält die Klassen und Funktionen zur Definition und Simulation von Mechanismen.
-- `mechanism_db.json`: Datenbankdatei, die die gespeicherten Mechanismen enthält.
-- `requirements.txt`: Liste der benötigten Python-Pakete.
-- [README.md](http://_vscodecontentref_/2): Diese Dokumentation.
+5. **Mechanismus exportiern/importieren** 
+   - Gehe zum Tab "Mechanik-Export/Import".
+   - Wähle einen gespeicherten Mechanismus aus der Dropdown-Liste und klicke auf "JSON herunterladen", um den  Mechanismus als JSON-Datei zu exportieren.
+   - Lade eine JSON-Datei hoch, um einen Mechanismus zu importieren.
+
+6. **Mechanismusanimation (GIF) downloaden**
+   - Gehe zum Tab "Animation".
+   - Wähle einen gespeicherten Mechanismus aus der Dropdown-Liste und klicke auf "Laden".
+   - Wähle die gewünschten Anzeigeoptionen (Längenfehler, Stablängen, Stabwinkel).
+   - Klicke auf "Download als GIF", um die Animation als GIF-Datei herunterzuladen.
+
+7. **Stückliste erstellen**
+   - Gehe zum Tab "Stückliste".
+   - Wähle die Gelenke, Stäbe und Antriebe aus, die in der Stückliste enthalten sein sollen.
+   - Klicke auf "Stückliste als CSV herunterladen", um die Stückliste als CSV-Datei herunterzuladen.
+
+## Projektstruktur
+- [README.md]: Hauptdatei für die Streamlit-Anwendung.
+- [database.py]: Funktionen zum Speichern und Laden von Mechanismen in der Datenbank.
+- [mechanism.py]: Enthält die Klassen und Funktionen zur Definition und Simulation von Mechanismen.
+- [animation.py]: Funktionen zur Animation der Mechanismen.
+- [mechanism_db.json]: Datenbankdatei, die die gespeicherten Mechanismen enthält.
+- [requirements.txt]: Liste der benötigten Python-Pakete.
+- [README.md]: Diese Dokumentation.
 
 ## Abhängigkeiten
 
 Die benötigten Pakete sind in der Datei `requirements.txt` aufgeführt. Hier ist eine Liste der wichtigsten Pakete:
+- streamlit
+- numpy
+- pandas
+- matplotlib
+- tinydb
+- scipy
 
 ## UML-Diagramm der Softwarestruktur
 
-@startuml
-class Mechanism {
-  - gelenk: list
-  - staebe: list
-  - radius: float
-  - fixed_gelenk_index: int
-  - rotating_gelenk_index: int
-  - theta_values: np.ndarray
-  - verbindungs_matrix: np.ndarray
-  - start_laengen: np.ndarray
-  - trajectories: dict
-  - selected_trajectory: int
-  + create_verbindungs_matrix()
-  + berechnet_laengen()
-  + fehlerfunktion()
-  + update_positions()
-}
-
-class Gelenk {
-  - x: float
-  - y: float
-  - is_static: bool
-  - is_rotating: bool
-  - is_tracked: bool
-  + position()
-}
-
-class Stab {
-  - gelenk1: Gelenk
-  - gelenk2: Gelenk
-}
-
-class TinyDB {
-  - db: TinyDB
-  - mechanisms_table: Table
-  + save_mechanism_to_db()
-  + load_mechanism_from_db()
-}
-
-Mechanism --> Gelenk
-Mechanism --> Stab
-TinyDB --> Mechanism
-@enduml
