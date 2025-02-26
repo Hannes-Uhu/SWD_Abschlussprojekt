@@ -127,4 +127,4 @@ def animate_mechanism(mechanism: Mechanism, show_length_error=False, show_stab_l
     ani = FuncAnimation(fig, update, frames=50, interval=100)
     html_writer = HTMLWriter()
     anim_html = ani.to_jshtml()
-    return anim_html
+    return anim_html, ani

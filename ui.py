@@ -98,7 +98,7 @@ with selected_tab[0]:
     # Mechanismus visualisieren
     if st.button("Simulation starten", key="start_simulation_tab0"):
         mechanism = Mechanism(gelenke, staebe, radius)
-        anim_html = animate_mechanism(mechanism, show_length_error, show_stab_lengths, show_stab_angles)
+        anim_html = animate_mechanism(mechanism, show_length_error, show_stab_lengths, show_stab_angles)[0]
         st.components.v1.html(anim_html, height=600)
 
 with selected_tab[1]:
@@ -152,7 +152,7 @@ with selected_tab[1]:
     if st.session_state["mechanism"] and st.button("▶ Mechanismus ausführen", key="run_loaded_mechanism_tab1"):
         mechanism = st.session_state["mechanism"]
         st.success(f"✅ Mechanismus '{selected_mechanism}' wird gestartet!")
-        anim_html = animate_mechanism(mechanism, show_length_error, show_stab_lengths, show_stab_angles)
+        anim_html = animate_mechanism(mechanism, show_length_error, show_stab_lengths, show_stab_angles)[0]
         st.components.v1.html(anim_html, height=600)
     
 with selected_tab[2]:  
@@ -324,7 +324,7 @@ with selected_tab[3]:
                 mechanism = st.session_state["mechanism"]
                 st.success(f"✅ Mechanismus '{selected_mechanism}' wird gestartet!")
                 
-                anim_html = animate_mechanism(mechanism, show_length_error, show_stab_lengths, show_stab_angles)
+                anim_html = animate_mechanism(mechanism, show_length_error, show_stab_lengths, show_stab_angles)[0]
                 st.components.v1.html(anim_html, height=600)
 
             # Option zum Speichern des Mechanismus nach dem Laden
@@ -364,7 +364,7 @@ with selected_tab[4]:
             st.session_state["mechanism"] = mechanism
             st.success(f"✅ Mechanismus '{selected_mechanism}' wurde geladen und wird nun für den Download vorbereitet!")
             
-            ani = animate_mechanism(mechanism, show_length_error, show_stab_lengths, show_stab_angles)
+            ani = animate_mechanism(mechanism, show_length_error, show_stab_lengths, show_stab_angles)[1]
             # Speichern vom GIF
             with tempfile.NamedTemporaryFile(suffix=".gif", delete=False) as temp_gif:
                 ani.save(temp_gif.name, writer=PillowWriter(fps=10))
