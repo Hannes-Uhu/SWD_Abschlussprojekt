@@ -16,6 +16,7 @@ package "Mechanism Module" {
     + berechnet_laengen()
     + fehlerfunktion()
     + update_positions()
+    + calculate_length_error()
   }
 
   class Gelenk {
@@ -30,6 +31,7 @@ package "Mechanism Module" {
   class Stab {
     - gelenk1: Gelenk
     - gelenk2: Gelenk
+    + calculate_current_length()
   }
 
   Mechanism --> Gelenk
@@ -38,7 +40,6 @@ package "Mechanism Module" {
 
 ' Package für das Datenbank-Modul
 package "Database Module" {
-  ' Obwohl database.py keine Klasse enthält, repräsentieren wir es als Utility "Database".
   class Database {
     + save_mechanism_to_db(name, gelenke, staebe, radius)
     + load_mechanism_from_db(name)
@@ -47,15 +48,15 @@ package "Database Module" {
 
 ' Package für das Animations-Modul
 package "Animation Module" {
-  ' animation.py enthält die Funktion animate_mechanism, welche wir als Methode in einem Animation Manager darstellen.
   class Animation {
     + animate_mechanism(mechanism, show_length_error, show_stab_lengths, show_stab_angles)
+    + calculate_length_error(mechanism, optimized_positions)
+    + visualize_length_error(ax, positions, errors)
   }
 }
 
 ' Package für das UI-Modul
 package "UI Module" {
-  ' ui.py enthält den Code für die Streamlit-basierte Benutzeroberfläche.
   class UI {
     + main()
     + create_mechanism()
@@ -64,6 +65,7 @@ package "UI Module" {
     + export_import_mechanism()
     + generate_animation_gif()
     + create_stueckliste()
+    + toggle_length_error_display()
   }
 }
 

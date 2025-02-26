@@ -435,6 +435,20 @@ with selected_tab[4]:
 with selected_tab[5]:
     st.header("Stückliste erstellen")
 
+    # Mechanismus Laden Feld hinzufügen
+    saved_mechanisms = [m["name"] for m in mechanisms_table.all()]
+    selected_mechanism_name = st.selectbox(
+        "🔽 Wähle einen gespeicherten Mechanismus",
+        saved_mechanisms,
+        key="mechanism_tab5"
+    )
+
+    if st.button("📂 Laden", key="laden_tab5"):
+        mechanism = load_mechanism_from_db(selected_mechanism_name)
+        if mechanism is not None:
+            st.session_state["mechanism"] = mechanism
+            st.success(f"✅ Mechanismus '{selected_mechanism_name}' wurde geladen!")
+            
     if st.session_state["mechanism"]:
         mechanism = st.session_state["mechanism"]
 
@@ -462,11 +476,25 @@ with selected_tab[5]:
             default=[f"A{i}" for i in range(len(mechanism.gelenke)) if mechanism.gelenke[i].is_rotating]
         )
 
+        # Stablängen berechnen
+        stab_lengths = []
+        for i, stab in enumerate(mechanism.staebe):
+            if f"S{i}" in selected_staebe:
+                dx = stab.gelenk2.x - stab.gelenk1.x
+                dy = stab.gelenk2.y - stab.gelenk1.y
+                length = round(np.sqrt(dx**2 + dy**2), 2)
+                stab_lengths.append(length)
+        
         # Stückliste erstellen
         st.subheader("Stückliste")
         stueckliste_data = {
-            "Typ": ["Gelenk"] * len(selected_gelenke) + ["Stab"] * len(selected_staebe) + ["Antrieb"] * len(selected_antriebe),
-            "Name": selected_gelenke + selected_staebe + selected_antriebe
+            "Typ": (["Gelenk"] * len(selected_gelenke) + 
+                   ["Stab"] * len(selected_staebe) + 
+                   ["Antrieb"] * len(selected_antriebe)),
+            "Name": selected_gelenke + selected_staebe + selected_antriebe,
+            "Länge": (["--"] * len(selected_gelenke) + 
+                     stab_lengths + 
+                     ["--"] * len(selected_antriebe))
         }
         stueckliste_df = pd.DataFrame(stueckliste_data)
         st.dataframe(stueckliste_df)
