@@ -93,8 +93,8 @@ Die benötigten Pakete sind in der Datei `requirements.txt` aufgeführt. Zu den 
 Im Projekt wurden alle geforderten Minimalanforderungen umgesetzt. Darüber hinaus würden auch noch zusätzliche Features implementiert. Hier werden die im Rahmen des Projekts umgesetzten Erweiterungen dokumentiert:
 
 ## Simulierung des "Strandbeast" Mechanismus
-Eingehen wurde außerdem die Fähigkeit der Software getestet. Durch implementierung des "Strandbeast" Mechanismus. Hierbei wurde durch Testen und Internetrecherche die Gelenkkoordniaten bestimmt und in die Software eingetragen. Anschließend dann auch simuliert siehe in dieser GIF: ![alt text](<Strandbeast V3.gif>)
-Das Ergebniss entspricht noch nicht ganz der Optimalen Trajektorie. Der Mechanismus läuft aber schonmal in einer etwa gleichen weise. 
+Eingehen wurde außerdem die Fähigkeit der Software getestet. Durch die implementierung des "Strandbeast" Mechanismus. Hierbei wurde durch Testen und Internetrecherche die Gelenkkoordinaten bestimmt und in die Software eingetragen. Anschließend dann auch simuliert siehe in dieser GIF: ![alt text](<Strandbeast V3.gif>)
+Das Ergebnis entspricht noch nicht ganz der optimalen Trajektorie. Der Mechanismus läuft aber schonmal in einer etwa gleicher Weise. 
 ## Erweiterung 1: Darstellung der Längenfehler
 
 **Beschreibung**  
@@ -103,7 +103,7 @@ Zeigt den prozentualen Längenfehler der einzelnen Verbindungen (Stäbe) in Abh�
 **Umsetzungsschritte**
 
 1. **Berechnung der Startlängen**  
-  - In der Methode `berechne_laengen()` der Klasse `Mechanism` (in mechanism.py) wird die ursprüngliche Länge jedes Stabes ermittelt und in `self.start_laengen` gespeichert.
+  - In der Methode `berechnet_laengen()` der Klasse `Mechanism` (in mechanism.py) wird die ursprüngliche Länge jedes Stabes ermittelt und in `self.start_laengen` gespeichert.
 
 2. **Erweiterung der Animation**  
   - Die Funktion `animate_mechanism()` in animation.py nutzt die neue Hilfsfunktion `calculate_length_error`, die die aktuellen Stablängen berechnet und den prozentualen Fehler ermittelt.  
@@ -241,7 +241,7 @@ Im gleichen Tab kann eine JSON-Datei hochgeladen werden, um einen Mechanismus zu
  - Einfache Erweiterbarkeit: Die Auszeichnungssprache kann bei Bedarf um zusätzliche Felder (z. B. Materialeigenschaften oder Metadaten) ergänzt werden, ohne dass das Grundgerüst verändert wird.
 
 # Softwarestruktur
-Weitere Details zur Softwarestruktur und den Komponenten, die in diesem Prozess miteinander interagieren, sind im UML-Diagramm im Repository dokumentiert ![](Softwarestrucktur.png)
+Weitere Details zur Softwarestruktur und den Komponenten, die in diesem Prozess miteinander interagieren, sind im UML-Diagramm im Repository dokumentiert ![](Softwarestruktur.png)
 
 # Verwendete Quellen
 - https://discuss.streamlit.io/t/matplotlib-animation-funcanimation-support/8949
