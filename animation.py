@@ -128,3 +128,39 @@ def animate_mechanism(mechanism: Mechanism, show_length_error=False, show_stab_l
     html_writer = HTMLWriter()
     anim_html = ani.to_jshtml()
     return anim_html, ani
+
+def visualize_mechanism(gelenke, staebe, radius):
+    fig, ax = plt.subplots(figsize=(5, 5))  
+    ax.set_aspect('equal')
+    ax.set_title("Mechanismus Vorschau")
+    ax.set_xlabel("X-Koordinate")
+    ax.set_ylabel("Y-Koordinate")
+    ax.grid(True)
+
+    all_x = [g.x for g in gelenke]
+    all_y = [g.y for g in gelenke]
+
+    padding = 10
+    x_min, x_max = min(all_x) - padding, max(all_x) + padding
+    y_min, y_max = min(all_y) - padding, max(all_y) + padding
+
+    ax.set_xlim(x_min, x_max)
+    ax.set_ylim(y_min, y_max)
+
+    for i, stab in enumerate(staebe):
+        p1 = (stab.gelenk1.x, stab.gelenk1.y)
+        p2 = (stab.gelenk2.x, stab.gelenk2.y)
+        ax.plot([p1[0], p2[0]], [p1[1], p2[1]], 'k-', lw=2)
+        mid_x, mid_y = (p1[0] + p2[0]) / 2, (p1[1] + p2[1]) / 2
+        ax.text(mid_x, mid_y, f"S{i}", color='blue', fontsize=8, ha='center')
+
+    for i, gelenk in enumerate(gelenke):
+        ax.plot(gelenk.x, gelenk.y, 'ro')
+        ax.text(gelenk.x, gelenk.y, f"G{i}", color='red', fontsize=8, ha='center', verticalalignment='bottom')
+
+    if any(hasattr(g, 'rotierend') and g.rotierend for g in gelenke):
+        rotierendes_gelenk = next(g for g in gelenke if hasattr(g, 'rotierend') and g.rotierend)
+        circle = plt.Circle((rotierendes_gelenk.x, rotierendes_gelenk.y), radius, color='b', fill=False, linestyle='dashed')
+        ax.add_patch(circle)
+
+    st.pyplot(fig)

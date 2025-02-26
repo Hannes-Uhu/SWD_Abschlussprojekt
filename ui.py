@@ -5,11 +5,14 @@ import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation, PillowWriter
 from database import save_mechanism_to_db, load_mechanism_from_db
 from mechanism import Mechanism, Gelenk, Stab
-from animation import animate_mechanism
+from animation import animate_mechanism, visualize_mechanism
 from tinydb import TinyDB, Query
 import tempfile
 import json
 from streamlit_modal import Modal
+import qrcode
+from io import BytesIO
+import base64
 
 db = TinyDB("mechanism_db.json")
 mechanisms_table = db.table("mechanisms")
@@ -40,14 +43,23 @@ st.title("Interaktive Mechanismus-Simulation")
 # Initialize session state for mechanism
 if "mechanism" not in st.session_state:
     st.session_state["mechanism"] = None
-
+# Checkboxen für Anzeigen
+    if "show_length_error_tab0" not in st.session_state:
+        st.session_state["show_length_error_tab0"] = False
+    if "show_stab_lengths_tab0" not in st.session_state:
+        st.session_state["show_stab_lengths_tab0"] = False
+    if "show_stab_angles_tab0" not in st.session_state:
+        st.session_state["show_stab_angles_tab0"] = False
+        
 # Tabs
 selected_tab = st.tabs(["💾 Erstellung", 
-                        "📂 Laden/Darstellung", 
+                        "📂 Laden", 
                         "📊 CSV download", 
-                        "📥⬆️ Mechanik-Export/Import", 
-                        "🎞️ Animation",
+                        "📥⬆️ Export/Import", 
+                        "🎞️ GIF",
                         "📜 Stückliste"])
+
+####################################################################################################################
 
 with selected_tab[0]:
     st.header("Mechanismus erstellen")
@@ -70,17 +82,23 @@ with selected_tab[0]:
         "Gelenk 1": [i if i < num_gelenke else num_gelenke - 1 for i in range(num_staebe)],
         "Gelenk 2": [i + 1 if i + 1 < num_gelenke else 0 for i in range(num_staebe)]
     })
-    stab_df = st.data_editor(stab_data, num_rows="dynamic")
+
+    col1, col2 = st.columns([0.5, 0.5])
+
+    with col1:
+        stab_df = st.data_editor(stab_data, num_rows="dynamic")
+
+    with col2:
+        gelenke = [Gelenk(row["X-Koordinate"], row["Y-Koordinate"], row["Fixiert"], row["Rotierend"], row["Trajektorie"]) for _, row in gelenke_df.iterrows()]
+        staebe = [Stab(gelenke[row["Gelenk 1"]], gelenke[row["Gelenk 2"]]) for _, row in stab_df.iterrows()]
+        visualize_mechanism(gelenke, staebe, radius)
     
     mechanism_name = st.text_input("Mechanismusname eingeben", value="Mein Mechanismus")
     
     if st.button("Speichern"):
-        gelenke = [Gelenk(row["X-Koordinate"], row["Y-Koordinate"], row["Fixiert"], row["Rotierend"], row["Trajektorie"]) for _, row in gelenke_df.iterrows()]
-        staebe = [Stab(gelenke[row["Gelenk 1"]], gelenke[row["Gelenk 2"]]) for _, row in stab_df.iterrows()]
         save_mechanism_to_db(mechanism_name, gelenke, staebe, radius)
         st.success(f"✅ Mechanismus '{mechanism_name}' gespeichert!")
 
-    # Checkboxen für Anzeigen
     if "show_length_error_tab0" not in st.session_state:
         st.session_state["show_length_error_tab0"] = False
     if "show_stab_lengths_tab0" not in st.session_state:
@@ -95,11 +113,13 @@ with selected_tab[0]:
     if show_length_error and show_stab_lengths:
         st.warning("Warnung: Wenn sowohl 'Prozentualen Längenfehler anzeigen' als auch 'Längen der Stäbe anzeigen' aktiviert sind, können sich die Zahlen in der Visualisierung überlappen.")
    
-    # Mechanismus visualisieren
     if st.button("Simulation starten", key="start_simulation_tab0"):
         mechanism = Mechanism(gelenke, staebe, radius)
         anim_html = animate_mechanism(mechanism, show_length_error, show_stab_lengths, show_stab_angles)[0]
         st.components.v1.html(anim_html, height=600)
+
+####################################################################################################################
+
 
 with selected_tab[1]:
     st.header("Mechanismus laden")
@@ -134,7 +154,6 @@ with selected_tab[1]:
             st.subheader("Rotationsradius")
             st.write(f"{result.radius}")
 
-    # Checkboxen für Anzeigen
     if "show_length_error_tab1" not in st.session_state:    
         st.session_state["show_length_error_tab1"] = False
     if "show_stab_lengths_tab1" not in st.session_state:
@@ -155,6 +174,9 @@ with selected_tab[1]:
         anim_html = animate_mechanism(mechanism, show_length_error, show_stab_lengths, show_stab_angles)[0]
         st.components.v1.html(anim_html, height=600)
     
+
+####################################################################################################################
+
 with selected_tab[2]:  
     st.header("CSV exportieren")
     saved_mechanisms = [m["name"] for m in mechanisms_table.all()]
@@ -188,6 +210,11 @@ with selected_tab[2]:
 
     if st.session_state["mechanism"]:
         export_option = st.toggle("CSV-Datei nur für ausgewählte Trajektorie", value=True)
+
+        if export_option:
+            st.info("Hinweis: Es wird nur die Trajektorie des einen Gelenks exportiert, das als 'Trajektorie' markiert ist.")
+        else:
+            st.info("Hinweis: Es werden die Trajektorien aller Gelenke exportiert.")
 
         if st.button("CSV exportieren"):
             mechanism = st.session_state["mechanism"]
@@ -238,49 +265,75 @@ with selected_tab[2]:
                 mime="text/csv"
             )
 
+
+####################################################################################################################
+
 with selected_tab[3]:
     st.header("Mechanismus herunter- und hochladen")
 
-    # Export-Funktion für JSON im gespeicherten Format
     st.subheader("Mechanismus exportieren")
-    selected_mechanism = st.selectbox("🔽 Wähle einen gespeicherten Mechanismus zum Export", [m["name"] for m in mechanisms_table.all()], key="export_mechanism")
 
-    mechanism = load_mechanism_from_db(selected_mechanism)
-    if mechanism is not None:
-        gelenke, staebe, radius = mechanism.gelenke, mechanism.staebe, mechanism.radius
+    col1, col2 = st.columns([0.6, 0.4])
+        
+    with col1:
+        selected_mechanism = st.selectbox("🔽 Wähle einen gespeicherten Mechanismus zum Export", [m["name"] for m in mechanisms_table.all()], key="export_mechanism")
 
-        mechanism_data = {
-            "mechanisms": {
-                "1": {
-                    "name": selected_mechanism,
-                    "gelenke": [
-                        {
-                            "x": g.x,
-                            "y": g.y,
-                            "static": g.is_static,      
-                            "rotating": g.is_rotating, 
-                            "tracked": g.is_tracked     
-                        } for g in gelenke
-                    ],
-                    "staebe": [[gelenke.index(s.gelenk1), gelenke.index(s.gelenk2)] for s in staebe],
-                    "radius": radius
+        mechanism = load_mechanism_from_db(selected_mechanism)
+        if mechanism is not None:
+            gelenke, staebe, radius = mechanism.gelenke, mechanism.staebe, mechanism.radius
+
+            mechanism_data = {
+                "mechanisms": {
+                    "1": {
+                        "name": selected_mechanism,
+                        "gelenke": [
+                            {
+                                "x": g.x,
+                                "y": g.y,
+                                "static": g.is_static,      
+                                "rotating": g.is_rotating, 
+                                "tracked": g.is_tracked     
+                            } for g in gelenke
+                        ],
+                        "staebe": [[gelenke.index(s.gelenk1), gelenke.index(s.gelenk2)] for s in staebe],
+                        "radius": radius
+                    }
                 }
             }
-        }
 
-        json_data = json.dumps(mechanism_data, indent=4)
-        st.download_button(
-            label="📥 JSON herunterladen",
-            data=json_data,
-            file_name=f"{selected_mechanism}.json",
-            mime="application/json"
-        )
+            json_data = json.dumps(mechanism_data, indent=4)
+            st.download_button(
+                label="📥 JSON herunterladen",
+                data=json_data,
+                file_name=f"{selected_mechanism}.json",
+                mime="application/json"
+            )
 
-        # Option zum Löschen
         if st.button("🗑️ Mechanismus aus Datenbank löschen"):
             mechanisms_table.remove(Query().name == selected_mechanism)
             st.success(f"✅ Mechanismus '{selected_mechanism}' wurde aus der Datenbank gelöscht!")
 
+
+    with col2:
+        if mechanism is not None:
+            qr = qrcode.QRCode(
+                version=1,
+                error_correction=qrcode.constants.ERROR_CORRECT_L,
+                box_size=2,
+                border=4,
+            )
+            qr.add_data(json_data)
+            qr.make(fit=True)
+            img = qr.make_image(fill='black', back_color='white')
+
+            buffer = BytesIO()
+            img.save(buffer, format="PNG")
+            buffer.seek(0)
+            img_base64 = base64.b64encode(buffer.getvalue()).decode()
+
+            st.image(f"data:image/png;base64,{img_base64}", caption="QR-Code für Mechanismus")
+
+        
     # Import-Funktion für JSON mit neuer Formatierung
     st.subheader("Mechanismus importieren")
     uploaded_file = st.file_uploader("Lade eine JSON-Datei hoch", type=["json"])
@@ -293,18 +346,17 @@ with selected_tab[3]:
 
             gelenke = [Gelenk(joint["x"], 
                              joint["y"], 
-                             joint.get("static", False),  # Änderung von is_static zu static
-                             joint.get("rotating", False), # Änderung von is_rotating zu rotating 
-                             joint.get("tracked", False)   # Änderung von is_tracked zu tracked
+                             joint.get("static", False),  
+                             joint.get("rotating", False), 
+                             joint.get("tracked", False) 
                              ) for joint in mechanism_info["gelenke"]]
             staebe = [Stab(gelenke[s[0]], gelenke[s[1]]) for s in mechanism_info["staebe"]]
             radius = mechanism_info.get("radius", 10)
 
-            # Speichern des Mechanismus in der Session
+           
             st.session_state["mechanism"] = Mechanism(gelenke, staebe, radius)
             st.success(f"✅ Mechanismus '{mechanism_info['name']}' wurde erfolgreich geladen!")
 
-            # Checkboxen für Anzeigen
             if "show_length_error_tab1" not in st.session_state:
                 st.session_state["show_length_error_tab3"] = False  
             if "show_stab_lengths_tab1" not in st.session_state:
@@ -338,12 +390,13 @@ with selected_tab[3]:
         except Exception as e:
             st.error(f"Fehler beim Laden der Datei: {e}")
 
+####################################################################################################################
+
 with selected_tab[4]:
     st.header("Mechanismusanimation (gif) downloaden")
     saved_mechanisms = [m["name"] for m in mechanisms_table.all()]
     selected_mechanism = st.selectbox("🔽 Wähle einen gespeicherten Mechanismus", saved_mechanisms, key="mechanism_tab3")
 
-    # Checkboxen für Anzeigen
     if "show_length_error_tab4" not in st.session_state:
         st.session_state["show_length_error_tab4"] = False
     if "show_stab_lengths_tab4" not in st.session_state:
@@ -428,64 +481,3 @@ with selected_tab[5]:
         )
     else:
         st.warning("Bitte lade oder erstelle zuerst einen Mechanismus.")
-
-##################################################################################
-'''
-#QR-Code
-col1, col2 = st.columns([2, 1])
-        
-    with col1:
-
-        selected_mechanism = st.selectbox("🔽 Wähle einen gespeicherten Mechanismus zum Export", [m["name"] for m in mechanisms_table.all()], key="export_mechanism")
-
-        result = load_mechanism_from_db(selected_mechanism)
-        if result[0] is not None:
-            gelenke, staebe, radius, _, _ = result
-
-            mechanism_data = {
-                "mechanisms": {
-                    "1": {
-                        "name": selected_mechanism,
-                        "gelenke": [
-                            {
-                                "x": g.x,
-                                "y": g.y,
-                                "static": g.is_static,
-                                "rotating": g.is_rotating,
-                                "tracked": g.is_tracked
-                            } for g in gelenke
-                        ],
-                        "staebe": [[gelenke.index(s.gelenk1), gelenke.index(s.gelenk2)] for s in staebe],
-                        "radius": radius
-                    }
-                }
-            }
-
-            json_data = json.dumps(mechanism_data, indent=4)
-            
-            st.download_button(
-                label="📥 JSON herunterladen",
-                data=json_data,
-                file_name=f"{selected_mechanism}.json",
-                mime="application/json"
-            )
-
-        with col2:
-
-            qr = qrcode.QRCode(
-                version=1,
-                error_correction=qrcode.constants.ERROR_CORRECT_L,
-                box_size=2,
-                border=4,
-            )
-            qr.add_data(json_data)
-            qr.make(fit=True)
-            img = qr.make_image(fill='black', back_color='white')
-
-            buffer = BytesIO()
-            img.save(buffer, format="PNG")
-            buffer.seek(0)
-            img_base64 = base64.b64encode(buffer.getvalue()).decode()
-
-            st.image(f"data:image/png;base64,{img_base64}", caption="QR-Code für Mechanismus")
-'''
