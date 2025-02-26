@@ -9,9 +9,31 @@ from animation import animate_mechanism
 from tinydb import TinyDB, Query
 import tempfile
 import json
+from streamlit_modal import Modal
 
 db = TinyDB("mechanism_db.json")
 mechanisms_table = db.table("mechanisms")
+
+# Anleitungsfenster
+open_modal = st.button("ℹ️ Anleitung anzeigen")
+
+modal = Modal("Willkommen zur App", key="tutorial")
+
+if open_modal:
+    modal.open()
+
+if modal.is_open():
+    with modal.container():
+        st.write("""
+        Willkommen in der App! Hier sind die wichtigsten Funktionen:
+        - 🛠 **Mechanismus hinzufügen**
+        - 🎬 **Simulation starten**
+        - 💾 **Speichern & Laden**
+        - 📊 **Daten exportieren**
+        
+        Viel Spaß! 🎉
+        """)
+
 
 st.title("Interaktive Mechanismus-Simulation")
 
@@ -406,3 +428,64 @@ with selected_tab[5]:
         )
     else:
         st.warning("Bitte lade oder erstelle zuerst einen Mechanismus.")
+
+##################################################################################
+'''
+#QR-Code
+col1, col2 = st.columns([2, 1])
+        
+    with col1:
+
+        selected_mechanism = st.selectbox("🔽 Wähle einen gespeicherten Mechanismus zum Export", [m["name"] for m in mechanisms_table.all()], key="export_mechanism")
+
+        result = load_mechanism_from_db(selected_mechanism)
+        if result[0] is not None:
+            gelenke, staebe, radius, _, _ = result
+
+            mechanism_data = {
+                "mechanisms": {
+                    "1": {
+                        "name": selected_mechanism,
+                        "gelenke": [
+                            {
+                                "x": g.x,
+                                "y": g.y,
+                                "static": g.is_static,
+                                "rotating": g.is_rotating,
+                                "tracked": g.is_tracked
+                            } for g in gelenke
+                        ],
+                        "staebe": [[gelenke.index(s.gelenk1), gelenke.index(s.gelenk2)] for s in staebe],
+                        "radius": radius
+                    }
+                }
+            }
+
+            json_data = json.dumps(mechanism_data, indent=4)
+            
+            st.download_button(
+                label="📥 JSON herunterladen",
+                data=json_data,
+                file_name=f"{selected_mechanism}.json",
+                mime="application/json"
+            )
+
+        with col2:
+
+            qr = qrcode.QRCode(
+                version=1,
+                error_correction=qrcode.constants.ERROR_CORRECT_L,
+                box_size=2,
+                border=4,
+            )
+            qr.add_data(json_data)
+            qr.make(fit=True)
+            img = qr.make_image(fill='black', back_color='white')
+
+            buffer = BytesIO()
+            img.save(buffer, format="PNG")
+            buffer.seek(0)
+            img_base64 = base64.b64encode(buffer.getvalue()).decode()
+
+            st.image(f"data:image/png;base64,{img_base64}", caption="QR-Code für Mechanismus")
+'''
