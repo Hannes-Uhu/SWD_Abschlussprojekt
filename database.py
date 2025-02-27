@@ -16,8 +16,6 @@ def load_mechanism_from_db(name):
     MechanismQuery = Query()
     result = mechanisms_table.get(MechanismQuery.name == name)
     
-    print(f"🔍 Debug: Geladene Daten aus TinyDB für '{name}': {result}")
-
     if result:
         gelenke = [
             Gelenk(
@@ -28,12 +26,15 @@ def load_mechanism_from_db(name):
                 g.get("is_tracked", g.get("tracked", False))
             ) for g in result["gelenke"]
         ]
-        
+
         print(f"🔍 Debug: Stäbe vor Umwandlung: {result['staebe']}")
-        
-        staebe = [Stab(gelenke[s[0]], gelenke[s[1]]) for s in result["staebe"]]
-        
+
+        if isinstance(result["staebe"][0], dict):
+            staebe = [Stab(gelenke[s["gelenk1"]], gelenke[s["gelenk2"]]) for s in result["staebe"]]
+        else:
+            staebe = [Stab(gelenke[s[0]], gelenke[s[1]]) for s in result["staebe"]]
+
         radius = result["radius"]
         return Mechanism(gelenke, staebe, radius)
-    
+
     return None
