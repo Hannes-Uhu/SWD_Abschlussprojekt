@@ -71,6 +71,10 @@ if modal.is_open():
         Viel Spaß! 🎉
         """)
 
+with open("deine_daten.json", "r") as file:
+    data = json.load(file)
+
+st.write("📂 **Gespeicherte JSON-Daten:**", data)
 
 st.title("Interaktive Mechanismus-Simulation")
 
