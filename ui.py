@@ -91,7 +91,8 @@ selected_tab = st.tabs(["💾 Erstellung",
                         "📊 CSV download", 
                         "📥⬆️ Export/Import", 
                         "🎞️ GIF",
-                        "📜 Stückliste"])
+                        "📜 Stückliste",
+                        "🏎️ Geschwindigkeit"])
 
 ####################################################################################################################
 
@@ -466,6 +467,8 @@ with selected_tab[4]:
                 mime="image/gif"
             )
 
+####################################################################################################################
+
 with selected_tab[5]:
     st.header("Stückliste erstellen")
 
@@ -543,3 +546,121 @@ with selected_tab[5]:
         )
     else:
         st.warning("Bitte lade oder erstelle zuerst einen Mechanismus.")
+
+
+####################################################################################################################
+
+with selected_tab[6]:
+    st.header("Geschwindigkeiten des Mechanismus")
+
+    selected_mechanism = st.selectbox("Mechanismus auswählen", [m["name"] for m in mechanisms_table.all()], key="mechanism_tab6")
+    
+    if st.button("📂 Laden", key="load_mechanism_tab6"):
+        result = load_mechanism_from_db(selected_mechanism)
+        if result is not None:
+            st.session_state["mechanism"] = result
+            st.success(f"✅ Mechanismus '{selected_mechanism}' geladen!")
+
+            gelenk_data = pd.DataFrame({
+                "Gelenk": [f"G{i}" for i in range(len(result.gelenke))],
+                "X-Koordinate": [g.x for g in result.gelenke],
+                "Y-Koordinate": [g.y for g in result.gelenke],
+                "Fixiert": [g.is_static for g in result.gelenke],
+                "Rotierend": [g.is_rotating for g in result.gelenke],
+                "Trajektorie": [g.is_tracked for g in result.gelenke]
+            })
+
+            stab_data = pd.DataFrame({
+                "Stab": [f"S{i}" for i in range(len(result.staebe))],
+                "Gelenk 1": [result.gelenke.index(stab.gelenk1) for stab in result.staebe],
+                "Gelenk 2": [result.gelenke.index(stab.gelenk2) for stab in result.staebe]
+            })
+
+            gelenke = [Gelenk(row["X-Koordinate"], row["Y-Koordinate"], row["Fixiert"], row["Rotierend"], row["Trajektorie"]) for _, row in gelenk_data.iterrows()]
+            staebe = [Stab(gelenke[row["Gelenk 1"]], gelenke[row["Gelenk 2"]]) for _, row in stab_data.iterrows()]
+            st.session_state["gelenke"] = gelenke
+            st.session_state["staebe"] = staebe
+            st.session_state["radius"] = result.radius
+
+    if "mechanism" in st.session_state and st.session_state["mechanism"]:
+        col1, col2 = st.columns([0.5, 0.5])
+
+        with col1:
+            speed = st.slider("Geschwindigkeit des Mechanismus", 1, 100, 50)
+
+            gelenke = st.session_state["mechanism"].gelenke
+            selected_gelenke = st.multiselect("Gelenke zur Geschwindigkeitsdarstellung auswählen", [f"G{i}" for i in range(len(gelenke))], key="auswahl_gelenke_tab1")
+
+        with col2:
+            if "gelenke" in st.session_state and "staebe" in st.session_state and "radius" in st.session_state:
+                visualize_mechanism(st.session_state["gelenke"], st.session_state["staebe"], st.session_state["radius"])
+    else:
+        selected_gelenke = []
+
+    if "mechanism" in st.session_state and st.session_state["mechanism"]:
+        if st.button("Simulation starten", key="simulate_loaded"):
+            mechanism = st.session_state["mechanism"]
+
+            # Animation der Gelenkgeschwindigkeiten
+            num_frames = 50
+            time_values = np.linspace(0, 2 * np.pi, num_frames)
+            positions = [mechanism.update_positions(theta * speed / 50) for theta in time_values]
+            positions = np.array(positions)
+            velocities = np.gradient(positions, axis=0)
+            velocity_magnitudes = np.linalg.norm(velocities, axis=2)
+            
+            if selected_gelenke:
+                indices = [int(g.strip("G")) for g in selected_gelenke]
+            else:
+                indices = list(range(velocity_magnitudes.shape[1]))
+            
+            fps = max(1, int(speed/10))
+            fig, ax = plt.subplots(figsize=(8, 5))
+            ax.set_xlim(time_values[0], time_values[-1])
+            ymin = np.min(velocity_magnitudes[:, indices])
+            ymax = np.max(velocity_magnitudes[:, indices])
+            ax.set_ylim(ymin, ymax)
+            ax.set_xlabel("Zeit (s)")
+            ax.set_ylabel("Geschwindigkeit (Einheiten/s)")
+            ax.set_title("Geschwindigkeitsverlauf der Gelenke")
+            ax.grid(True)
+            lines = {}
+            for i in indices:
+                (line,) = ax.plot([], [], label=f"Gelenk {i+1}")
+                lines[i] = line
+            ax.legend()
+
+            def update(frame):
+                for i in indices:
+                    lines[i].set_data(time_values[:frame], velocity_magnitudes[:frame, i])
+                return list(lines.values())
+            anim = FuncAnimation(fig, update, frames=num_frames, interval=1000/fps, blit=True)
+            import tempfile, os
+            with tempfile.NamedTemporaryFile(suffix=".gif", delete=False) as tmp:
+                tmp_filename = tmp.name
+            writer = PillowWriter(fps=fps)
+            anim.save(tmp_filename, writer=writer)
+            with open(tmp_filename, "rb") as f:
+                gif_bytes = f.read()
+            os.remove(tmp_filename)
+            
+            #Liste mit Geschwindigkeiten
+            max_speed_positions = {}
+            for i in indices:
+                max_index = np.argmax(velocity_magnitudes[:, i])
+                max_speed_positions[f"Gelenk {i+1}"] = {
+                    "X-Position": positions[max_index, i, 0],
+                    "Y-Position": positions[max_index, i, 1],
+                    "Maximale Geschwindigkeit": velocity_magnitudes[max_index, i]
+                }
+            
+            st.subheader("Positionen der maximalen Geschwindigkeit der ausgewählten Gelenke")
+            max_speed_df = pd.DataFrame(max_speed_positions).T
+            st.table(max_speed_df)
+
+            
+            st.image(gif_bytes)
+            
+            anim_html_loaded = animate_mechanism(mechanism, False, False, False)[0]
+            st.components.v1.html(anim_html_loaded, height=600)
+            
