@@ -72,12 +72,12 @@ if modal.is_open():
         """)
 
 try:
-    with open("deine_daten.json", "r") as file:
+    with open("mechanism_db.json", "r") as file:
         data = json.load(file)
     st.write("📂 **Gespeicherte JSON-Daten:**", data)
 except FileNotFoundError:
     st.warning("Die Datei 'deine_daten.json' wurde nicht gefunden.")
-    
+
 st.title("Interaktive Mechanismus-Simulation")
 
 # Initialize session state for mechanism
