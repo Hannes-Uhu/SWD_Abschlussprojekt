@@ -27,7 +27,6 @@ def load_mechanism_from_db(name):
             ) for g in result["gelenke"]
         ]
 
-        print(f"🔍 Debug: Stäbe vor Umwandlung: {result['staebe']}")
 
         if isinstance(result["staebe"][0], dict):
             staebe = [Stab(gelenke[s["gelenk1"]], gelenke[s["gelenk2"]]) for s in result["staebe"]]

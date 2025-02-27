@@ -32,8 +32,9 @@
 1. **Streamlit-Anwendung starten**  
   Führe den folgenden Befehl aus, um die interaktive Mechanismus-Simulation zu starten:
   ```bash
-  streamlit run Streamlit_UI.py
+  streamlit run ui.py
   ```
+  Oder verwende die Webanwendung: https://best-mechanism-simulator.streamlit.app/
 
 2. **Mechanismus erstellen**  
   - Öffne die Anwendung im Browser.
@@ -239,6 +240,28 @@ Im gleichen Tab kann eine JSON-Datei hochgeladen werden, um einen Mechanismus zu
  - Plattformunabhängigkeit: Das JSON-Format ermöglicht einen einfachen Austausch von Mechanismen   zwischen verschiedenen Systemen oder Anwendungen.
  - Nachhaltige Archivierung: Mechanik-Modelle lassen sich als Datei speichern und später unverändert wiederverwenden.
  - Einfache Erweiterbarkeit: Die Auszeichnungssprache kann bei Bedarf um zusätzliche Felder (z. B. Materialeigenschaften oder Metadaten) ergänzt werden, ohne dass das Grundgerüst verändert wird.
+
+ Erweiterung 6: Kalkulation der höchsten Vorwärtsgeschwindigkeit Beschreibung Im Rahmen dieser Erweiterung wird eine neue Kennzahl eingeführt, mit deren Hilfe die maximale Vorwärtsgeschwindigkeit eines definierten Punktes (z. B. eines Fußpunktes) in einem Strandbeest-Mechanismus berechnet werden kann. Die Geschwindigkeit wird basierend auf der Drehgeschwindigkeit der Kurbel, der Schrittlänge und der maximalen Schritthöhe berechnet. So ergibt sich ein Optimierungskriterium für die Feinjustierung der Gliederlängen, das eine effizientere Fortbewegung ermöglicht.
+
+Umsetzungsmaßnahmen Erfassung der Zielpunkt-Trajektorie:
+
+Im Verlauf der Simulation wird die Bewegung eines ausgewählten Punktes (zum Beispiel des Fußes) fortlaufend dokumentiert.
+Der in X-Richtung erfolgende Fortschritt wird anhand der in der Simulation erzeugten Trajektorie (X- und Y-Koordinaten) bestimmt.
+Ermittlung der Vorwärtsgeschwindigkeit:
+
+Die Differenz zwischen dem maximalen und minimalen X-Wert, der innerhalb einer vollen Kurbelumdrehung erreicht wurde, wird berechnet.
+Die effektive Vorwärtsgeschwindigkeit wird unter Berücksichtigung der Drehgeschwindigkeit der Kurbel (die in der Simulation eingestellt werden kann) bestimmt.
+Die Berechnung berücksichtigt zudem die Schrittlänge (die horizontale Distanz eines vollständigen Schrittes) sowie die maximale Schritthöhe (ein Maß für die Effizienz der Schrittbewegung).
+Einbindung in den Optimierungsprozess:
+
+Die als Ergebnis der Berechnung erhaltene Vorwärtsgeschwindigkeit wird als Maßstab zur Optimierung der Längen der Mechanismusglieder verwendet.
+Der Mechanismus kann so optimiert werden, dass die maximale Vorwärtsgeschwindigkeit erreicht wird, indem die Längen schrittweise angepasst werden. 
+Resultate und Vorteil
+Quantitative Bewertung: Die Erweiterung bietet einen konkreten numerischen Wert oder eine grafische Darstellung der maximalen Vorwärtsgeschwindigkeit, die als Maßstab für die Leistung dient.
+
+Optimierungsziel: Mit Hilfe der Metrik können die Parameter (Gliederlängen, Drehgeschwindigkeit, Schrittlänge, Schritthöhe) systematisch angepasst werden, um eine optimale Fortbewegungsleistung zu erzielen.
+
+Gebrauch in der Simulation: Die Benutzer haben die Möglichkeit, die Folgen von Anpassungen der Parameter unmittelbar in der Simulation zu verfolgen. So können sie gut begründete Entscheidungen treffen, um den Mechanismus zu optimieren.
 
 # Softwarestruktur
 Weitere Details zur Softwarestruktur und den Komponenten, die in diesem Prozess miteinander interagieren, sind im UML-Diagramm im Repository dokumentiert ![](Softwarestruktur.png)
