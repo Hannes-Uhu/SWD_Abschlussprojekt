@@ -29,10 +29,9 @@ def load_mechanism_from_db(name):
             ) for g in result["gelenke"]
         ]
         
-        # Problem könnte hier liegen, wenn `s` als Dictionary gespeichert wurde
         print(f"🔍 Debug: Stäbe vor Umwandlung: {result['staebe']}")
         
-        staebe = [Stab(gelenke[s["gelenk1"]], gelenke[s["gelenk2"]]) for s in result["staebe"]]
+        staebe = [Stab(gelenke[s[0]], gelenke[s[1]]) for s in result["staebe"]]
         
         radius = result["radius"]
         return Mechanism(gelenke, staebe, radius)
