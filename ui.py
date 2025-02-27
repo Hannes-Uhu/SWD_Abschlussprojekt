@@ -67,7 +67,11 @@ if modal.is_open():
         - Gehe zum Tab "Stückliste".
         - Wähle die Gelenke, Stäbe und Antriebe aus, die in die Stückliste aufgenommen werden sollen.
         - Klicke auf "Stückliste als CSV herunterladen", um die Liste zu exportieren.
- 
+
+        🏎️ **Geschwindigkeit der Glieder bestimmen**
+        - Mechanismus laden & Gelenkauswahl treffen: Wähle einen gespeicherten Mechanismus und bestimme im Multiselect die Gelenke, deren Geschwindigkeit dargestellt werden soll.
+        - Geschwindigkeit einstellen: Nutze den Slider, um die Simulationsgeschwindigkeit anzupassen.
+        - Simulation starten: Klicke auf „Simulation starten“; es erscheint eine Animation und eine Tabelle mit den Positionen der maximalen Gelenkgeschwindigkeiten.         
         Viel Spaß! 🎉
         """)
 
